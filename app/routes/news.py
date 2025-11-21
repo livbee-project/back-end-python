@@ -4,7 +4,7 @@ News 라우트
 """
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.core.database import get_db
