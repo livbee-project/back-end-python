@@ -15,7 +15,19 @@ from app.models.campaign import Campaign, ProductItem, Question
 from app.models.application import Application
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
-from app.utils.common import to_thumb, sanitize_html, category_to_code, code_to_category
+from app.utils.common import (
+    to_thumb,
+    sanitize_html,
+    category_to_code,
+    code_to_category,
+    strip_tags,
+    truncate_text,
+)
+from app.utils.pagination import (
+    normalize_pagination,
+    apply_pagination,
+    build_paginated_payload,
+)
 import uuid
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
@@ -220,15 +232,13 @@ async def get_campaigns(
     """
     모집 공고 목록 조회 (검색, 정렬, 페이지네이션)
     """
-    skip = (page - 1) * limit
+    page, limit = normalize_pagination(page, limit, max_limit=50)
 
-    # 기본 쿼리 조건
     query = db.query(Campaign).filter(
         Campaign.is_public == True,
         Campaign.close_at >= date.today()
     )
 
-    # 검색어 필터
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -239,41 +249,33 @@ async def get_campaigns(
             )
         )
 
-    # 정렬
     if sort == "deadline":
         query = query.order_by(Campaign.close_at.asc())
     else:
         query = query.order_by(desc(Campaign.created_at))
 
-    # 전체 개수 및 목록 조회
     total_items = query.count()
-    campaigns = query.offset(skip).limit(limit).all()
+    campaigns = apply_pagination(query, page, limit).all()
 
-    # 로그인한 사용자의 지원 여부 확인
     applied_campaign_ids = set()
-    if current_user:
+    if current_user and campaigns:
         user_id = current_user.get("sub")
-        applications = db.query(Application).filter(
-            Application.user_id == user_id
+        campaign_ids = [c.id for c in campaigns]
+        applications = db.query(Application.campaign_id).filter(
+            Application.user_id == user_id,
+            Application.campaign_id.in_(campaign_ids)
         ).all()
         applied_campaign_ids = {app.campaign_id for app in applications}
 
-    # 응답 데이터 생성
     items = []
     for campaign in campaigns:
         item = {"id": campaign.id, **{k: v for k, v in campaign.__dict__.items() if not k.startswith("_")}}
         item["isAd"] = False
         item["isApplied"] = campaign.id in applied_campaign_ids
+        item["summary"] = truncate_text(strip_tags(campaign.content), limit=220)
         items.append(item)
 
-    total_pages = (total_items + limit - 1) // limit
-
-    return success_response({
-        "items": items,
-        "currentPage": page,
-        "totalPages": total_pages,
-        "totalItems": total_items,
-    })
+    return success_response(build_paginated_payload(items, total_items, page, limit))
 
 
 @router.get("/mine")

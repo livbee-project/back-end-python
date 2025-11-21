@@ -28,17 +28,19 @@ jobs:
           SECRET_USER: ${{ secrets.GHCR_USERNAME }}
           SECRET_TOKEN: ${{ secrets.GHCR_TOKEN }}
           FALLBACK_USER: ${{ github.actor }}
-          FALLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FALLBACK_TOKEN: ${{ github.token }}
         run: |
           if [ -n "$SECRET_USER" ] && [ -n "$SECRET_TOKEN" ]; then
-            echo "username=$SECRET_USER" >> $GITHUB_OUTPUT
-            echo "password=$SECRET_TOKEN" >> $GITHUB_OUTPUT
-            echo "using_secret=true" >> $GITHUB_OUTPUT
+            CI_USER="$SECRET_USER"
+            CI_TOKEN="$SECRET_TOKEN"
           else
-            echo "username=$FALLBACK_USER" >> $GITHUB_OUTPUT
-            echo "password=$FALLBACK_TOKEN" >> $GITHUB_OUTPUT
-            echo "using_secret=false" >> $GITHUB_OUTPUT
+            CI_USER="$FALLBACK_USER"
+            CI_TOKEN="$FALLBACK_TOKEN"
           fi
+          echo "username=$CI_USER" >> $GITHUB_OUTPUT
+          echo "password=$CI_TOKEN" >> $GITHUB_OUTPUT
+          echo "deploy_username=$CI_USER" >> $GITHUB_OUTPUT
+          echo "deploy_token=$CI_TOKEN" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -73,41 +75,18 @@ jobs:
           build-args: |
             GHCR_BASE_IMAGE=${{ steps.meta.outputs.base_image }}
 
-      - name: Pull image for fallback
-        if: steps.ghcr-creds.outputs.using_secret == 'false'
-        run: |
-          docker pull ${{ steps.meta.outputs.app_image }}:${{ github.sha }}
-
-      - name: Save Docker image (fallback)
-        if: steps.ghcr-creds.outputs.using_secret == 'false'
-        run: |
-          docker save ${{ steps.meta.outputs.app_image }}:${{ github.sha }} | gzip -1 > livbee-backend-dev.tar.gz
-
-      - name: Copy Docker image to server (fallback)
-        if: steps.ghcr-creds.outputs.using_secret == 'false'
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEV_SERVER_HOST }}
-          username: ${{ secrets.DEV_SERVER_USER }}
-          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
-          port: 22
-          source: "livbee-backend-dev.tar.gz"
-          target: "/home/${{ secrets.DEV_SERVER_USER }}/livbee-backend"
-          strip_components: 0
-          rm: true
-
-      - name: Deploy to server (GHCR)
-        if: steps.ghcr-creds.outputs.using_secret == 'true'
+      - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
         env:
-          GHCR_DEPLOY_USERNAME: ${{ secrets.GHCR_USERNAME }}
-          GHCR_DEPLOY_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_DEPLOY_USERNAME: ${{ steps.ghcr-creds.outputs.deploy_username }}
+          GHCR_DEPLOY_TOKEN: ${{ steps.ghcr-creds.outputs.deploy_token }}
         with:
           host: ${{ secrets.DEV_SERVER_HOST }}
           username: ${{ secrets.DEV_SERVER_USER }}
           key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
           port: 22
           script: |
+            set -euo pipefail
             IMAGE="${{ steps.meta.outputs.app_image }}:${{ github.sha }}"
             cd /home/${{ secrets.DEV_SERVER_USER }}/livbee-backend
 
@@ -115,8 +94,6 @@ jobs:
             if [ -n "${GHCR_DEPLOY_USERNAME}" ] && [ -n "${GHCR_DEPLOY_TOKEN}" ]; then
               echo "${GHCR_DEPLOY_TOKEN}" | docker login ghcr.io -u "${GHCR_DEPLOY_USERNAME}" --password-stdin
               LOGIN_DONE=1
-            else
-              echo "⚠️ GHCR 자격증명이 설정되지 않았습니다. 익명으로 pull 시도합니다 (패키지가 public이어야 합니다)."
             fi
 
             docker pull "$IMAGE"
@@ -144,46 +121,6 @@ jobs:
             if [ "$LOGIN_DONE" -eq 1 ]; then
               docker logout ghcr.io
             fi
-            echo "✅ 배포 완료!"
-
-      - name: Deploy to server (fallback tarball)
-        if: steps.ghcr-creds.outputs.using_secret == 'false'
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEV_SERVER_HOST }}
-          username: ${{ secrets.DEV_SERVER_USER }}
-          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
-            set -euo pipefail
-            IMAGE="${{ steps.meta.outputs.app_image }}:${{ github.sha }}"
-            cd /home/${{ secrets.DEV_SERVER_USER }}/livbee-backend
-
-            if [ -f livbee-backend-dev.tar.gz ]; then
-              docker load < livbee-backend-dev.tar.gz
-              rm -f livbee-backend-dev.tar.gz
-            fi
-
-            cat > .env <<EOF
-            DB_HOST=${{ secrets.DEV_DB_HOST }}
-            DB_PORT=${{ secrets.DEV_DB_PORT }}
-            DB_NAME=${{ secrets.DEV_DB_NAME }}
-            DB_USER=${{ secrets.DEV_DB_USER }}
-            DB_PASSWORD=${{ secrets.DEV_DB_PASSWORD }}
-            JWT_SECRET=${{ secrets.DEV_JWT_SECRET }}
-            NODE_ENV=production
-            EOF
-
-            docker stop livbee-backend-dev 2>/dev/null || true
-            docker rm livbee-backend-dev 2>/dev/null || true
-
-            docker run -d \
-              --name livbee-backend-dev \
-              --restart always \
-              -p 8000:8000 \
-              --env-file .env \
-              "$IMAGE"
-
             echo "✅ 배포 완료!"
 
       - name: Health check

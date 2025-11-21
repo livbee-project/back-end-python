@@ -13,6 +13,12 @@ from app.middleware.role import require_role
 from app.models.news import News
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
+from app.utils.common import strip_tags, truncate_text
+from app.utils.pagination import (
+    normalize_pagination,
+    apply_pagination,
+    build_paginated_payload,
+)
 import uuid
 
 router = APIRouter(prefix="/news", tags=["news"])
@@ -45,20 +51,19 @@ async def get_news_list(
     """
     전체 뉴스 목록을 페이지네이션으로 조회
     """
-    skip = (page - 1) * limit
+    page, limit = normalize_pagination(page, limit, max_limit=50)
 
-    total_items = db.query(News).count()
-    news_items = db.query(News).order_by(desc(News.created_at)).offset(skip).limit(limit).all()
+    query = db.query(News).order_by(desc(News.created_at))
+    total_items = query.count()
+    news_items = apply_pagination(query, page, limit).all()
 
-    items = [{"id": n.id, **{k: v for k, v in n.__dict__.items() if not k.startswith("_")}} for n in news_items]
-    total_pages = (total_items + limit - 1) // limit
+    items = []
+    for news in news_items:
+        payload = {"id": news.id, **{k: v for k, v in news.__dict__.items() if not k.startswith("_")}}
+        payload["excerpt"] = truncate_text(strip_tags(news.content), limit=160)
+        items.append(payload)
 
-    return success_response({
-        "items": items,
-        "currentPage": page,
-        "totalPages": total_pages,
-        "totalItems": total_items,
-    })
+    return success_response(build_paginated_payload(items, total_items, page, limit))
 
 
 @router.get("/{news_id}")

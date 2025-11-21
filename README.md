@@ -118,6 +118,12 @@ back-end-python/
 > 📝 `GHCR_USERNAME`/`GHCR_TOKEN`을 설정하지 않으면 GitHub Actions는 `GITHUB_TOKEN`으로 push하고, 서버는 익명으로 pull을 시도합니다.  
 > 이 경우 GHCR 패키지를 Public로 공개해야 합니다.
 
+### 유틸리티 모듈
+
+- `app/utils/common.py`: HTML 정리(`sanitize_html`, `strip_tags`), 요약(`truncate_text`), 마스킹(`mask_email`, `mask_phone`), 전화번호 정규화(`normalize_phone_number`), Cloudinary 썸네일(`to_thumb`) 등
+- `app/utils/pagination.py`: `normalize_pagination`, `apply_pagination`, `build_paginated_payload`로 일관된 리스트 응답을 구성
+- `app/utils/response.py`: `success_response`, `fail_response`로 성공/실패 응답 포맷을 통일
+
 **보안 주의:** 
 - `.env` 파일은 절대 Git에 커밋하지 마세요
 - 모든 민감 정보는 GitHub Secrets로 관리됩니다
@@ -140,7 +146,7 @@ back-end-python/
 2. GitHub Actions 워크플로우 자동 실행
 3. Docker 베이스 이미지(`Dockerfile.base`) 빌드 후 GHCR에 push
 4. 애플리케이션 이미지(`Dockerfile`) 빌드 후 GHCR에 push
-5. 대상 서버에서 GHCR Pull + `.env` 동적 생성
+5. 대상 서버에서 GHCR Pull + `.env` 동적 생성 (GitHub Actions가 기본 `GITHUB_TOKEN`을 SSH 세션으로 전달하여 로그인)
 6. 기존 컨테이너 중지/삭제 후 새 컨테이너 실행
 7. 헬스체크 수행
 
@@ -150,7 +156,7 @@ back-end-python/
    - 레포지토리 Settings → Secrets and variables → Actions
    - 서버 호스트, SSH 키, 데이터베이스 정보
    - (선택) GHCR 패키지가 Private인 경우 `GHCR_USERNAME`, `GHCR_TOKEN` 추가  
-     👉 없으면 워크플로우는 `GITHUB_TOKEN`으로 push하고, 서버는 익명으로 pull 시도하므로 패키지를 Public로 공개해야 합니다.
+     👉 Secrets를 제공하지 않으면 워크플로우가 기본 `GITHUB_TOKEN`(단일 실행 동안만 유효)을 서버로 전달해 pull을 수행합니다.
 
 2. **서버 초기 설정**
    - Docker 및 Docker Compose 설치

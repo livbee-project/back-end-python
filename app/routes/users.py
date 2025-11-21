@@ -13,6 +13,7 @@ from app.middleware.auth import get_current_user
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
 from app.utils.error_messages import get_error_message
+from app.utils.common import mask_email, mask_phone, normalize_phone_number
 import uuid
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -85,13 +86,15 @@ async def signup(
     hashed_password = get_password_hash(password)
 
     # 사용자 데이터 생성
+    phone_value = (request.phone or "").strip() if request.phone else None
+
     user_data = {
         "id": str(uuid.uuid4()),
         "name": name,
         "email": email,
         "password": hashed_password,
         "role": role.value,
-        "phone": (request.phone or "").strip() if request.phone else None,
+        "phone": phone_value,
     }
 
     # 역할에 따라 해당 역할 전용 정보 추가
@@ -173,9 +176,16 @@ async def get_me(
     if not user:
         return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
 
+    normalized_phone = normalize_phone_number(user.phone) if user.phone else None
+
     return success_response({
         "id": user.id,
         "name": user.name,
-        "role": user.role
+        "role": user.role,
+        "email": user.email,
+        "maskedEmail": mask_email(user.email),
+        "phone": user.phone,
+        "maskedPhone": mask_phone(user.phone),
+        "normalizedPhone": normalized_phone,
     })
 
