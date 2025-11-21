@@ -7,7 +7,16 @@ FastAPI 기반 백엔드 API 서버입니다.
 - **Framework**: FastAPI (Python 3.10)
 - **Database**: PostgreSQL 16
 - **Deployment**: Docker + GitHub Actions CI/CD
-- **Infrastructure**: Oracle Cloud Free Tier
+- **Infrastructure**: Oracle Cloud Free Tier (OCI)
+- **Web Server**: Nginx (Reverse Proxy)
+- **SSL**: Let's Encrypt (Certbot)
+
+### 브랜치 전략
+
+- **`dev` 브랜치**: 개발 환경 자동 배포
+- **`prod` 브랜치**: 운영 환경 자동 배포
+
+---
 
 ## 🚀 빠른 시작
 
@@ -22,9 +31,11 @@ FastAPI 기반 백엔드 API 서버입니다.
 2. **가상환경 생성 및 활성화**
    ```bash
    python -m venv venv
+   
    # Windows
-   venv\Scripts\activate
-   # Linux/Mac
+   .\venv\Scripts\activate
+   
+   # Mac/Linux
    source venv/bin/activate
    ```
 
@@ -34,10 +45,18 @@ FastAPI 기반 백엔드 API 서버입니다.
    ```
 
 4. **환경변수 설정**
-   ```bash
-   # .env 파일을 생성하고 다음 환경변수를 설정하세요
-   # DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+   
+   프로젝트 루트에 `.env` 파일을 생성하고 다음 환경변수를 설정하세요:
+   
+   ```ini
+   DB_HOST=your_database_host
+   DB_PORT=5432
+   DB_NAME=your_database_name
+   DB_USER=your_database_user
+   DB_PASSWORD=your_database_password
    ```
+   
+   **⚠️ 보안 주의:** `.env` 파일은 절대 Git에 커밋하지 마세요. `.gitignore`에 포함되어 있습니다.
 
 5. **서버 실행**
    ```bash
@@ -47,6 +66,8 @@ FastAPI 기반 백엔드 API 서버입니다.
 6. **API 테스트**
    - 기본 엔드포인트: http://localhost:8000/
    - DB 연결 테스트: http://localhost:8000/db-test
+
+---
 
 ## 📁 프로젝트 구조
 
@@ -65,56 +86,117 @@ back-end-python/
 ├── nginx/
 │   ├── nginx-dev.conf       # Dev Nginx 설정
 │   └── nginx-prod.conf      # Prod Nginx 설정
-├── docs/
-│   └── DEPLOYMENT.md        # 상세 배포 가이드
 ├── Dockerfile               # Docker 이미지 빌드 설정
 ├── requirements.txt         # Python 패키지 의존성
 └── README.md               # 프로젝트 문서
 ```
 
+---
+
 ## 🔧 개발
 
 ### API 엔드포인트
 
-- `GET /`: 기본 Hello 메시지
-- `GET /db-test`: 데이터베이스 연결 테스트
+- `GET /`: 기본 Hello 메시지 반환
+- `GET /db-test`: 데이터베이스 연결 테스트 및 버전 정보 반환
 
 ### 환경변수
 
 필요한 환경변수:
-- `DB_HOST`: 데이터베이스 호스트 주소
-- `DB_PORT`: 데이터베이스 포트 (기본값: 5432)
-- `DB_NAME`: 데이터베이스 이름
-- `DB_USER`: 데이터베이스 사용자명
-- `DB_PASSWORD`: 데이터베이스 비밀번호
 
-**보안 주의:** `.env` 파일은 절대 Git에 커밋하지 마세요. 모든 민감 정보는 GitHub Secrets로 관리됩니다.
+| 변수명 | 설명 | 기본값 |
+|--------|------|--------|
+| `DB_HOST` | 데이터베이스 호스트 주소 | - |
+| `DB_PORT` | 데이터베이스 포트 | `5432` |
+| `DB_NAME` | 데이터베이스 이름 | - |
+| `DB_USER` | 데이터베이스 사용자명 | - |
+| `DB_PASSWORD` | 데이터베이스 비밀번호 | - |
+
+**보안 주의:** 
+- `.env` 파일은 절대 Git에 커밋하지 마세요
+- 모든 민감 정보는 GitHub Secrets로 관리됩니다
+- 프로덕션 환경은 수동 승인 단계가 포함되어 있습니다
+
+---
 
 ## 🚢 배포
 
-자세한 배포 가이드는 [DEPLOYMENT.md](docs/DEPLOYMENT.md)를 참고하세요.
+이 프로젝트는 GitHub Actions를 사용하여 자동 배포를 수행합니다.
 
-### 간단한 배포 프로세스
+### 배포 프로세스
 
 1. **Dev 환경**: `dev` 브랜치에 push하면 자동 배포
-2. **Prod 환경**: `main` 또는 `master` 브랜치에 push하면 배포
+2. **Prod 환경**: `prod` 브랜치에 push하면 자동 배포 (수동 승인 가능)
+
+### 배포 시나리오
+
+1. 코드를 브랜치에 push
+2. GitHub Actions 워크플로우 자동 실행
+3. Docker 이미지 빌드
+4. 서버에 파일 전송 (SCP)
+5. GitHub Secrets로 `.env` 파일 동적 생성
+6. 기존 컨테이너 중지/삭제 후 새 컨테이너 실행
+7. 헬스체크 수행
 
 ### 배포 전 필수 작업
 
-1. GitHub Secrets 설정 (레포지토리 설정 → Secrets and variables → Actions)
-2. 서버 초기 설정 (Docker, Nginx 설치)
-3. Nginx 설정 및 SSL 인증서 발급
+1. **GitHub Secrets 설정**
+   - 레포지토리 Settings → Secrets and variables → Actions
+   - 서버 호스트, SSH 키, 데이터베이스 정보 등 설정
 
-## 📚 문서
+2. **서버 초기 설정**
+   - Docker 및 Docker Compose 설치
+   - Nginx 설치 및 설정
+   - SSL 인증서 발급 (Let's Encrypt)
 
-- [배포 가이드](docs/DEPLOYMENT.md) - 상세한 배포 및 설정 가이드
+3. **SSH 키 설정**
+   - 배포용 SSH 키 생성 및 서버에 등록
+
+---
+
+## 🏗️ 인프라 구조
+
+### 환경 분리
+
+- **개발 환경 (Dev)**: 개발 및 테스트용
+- **운영 환경 (Prod)**: 프로덕션 서비스용
+
+### 기술 스택
+
+- **컨테이너**: Docker
+- **웹 서버**: Nginx (Reverse Proxy)
+- **SSL/TLS**: Let's Encrypt (Certbot)
+- **CI/CD**: GitHub Actions
+- **클라우드**: Oracle Cloud Infrastructure (OCI)
+
+---
 
 ## 🔒 보안
 
-- 모든 민감 정보는 GitHub Secrets로 관리
-- `.env` 파일은 절대 Git에 커밋하지 않음
-- 프로덕션 환경은 수동 승인 단계 포함
+- ✅ 모든 민감 정보는 GitHub Secrets로 관리
+- ✅ `.env` 파일은 절대 Git에 커밋하지 않음
+- ✅ 프로덕션 환경은 수동 승인 단계 포함
+- ✅ SSH 키는 안전하게 관리
+- ✅ SSL/TLS 인증서로 HTTPS 통신
+
+---
+
+## 🛠️ 문제 해결
+
+### 빠른 확인 사항
+
+- **배포 실패**: GitHub Actions 로그 확인
+- **502 에러**: Docker 컨테이너 및 Nginx 상태 확인
+- **DB 연결 실패**: 환경변수 및 방화벽 설정 확인
+
+---
 
 ## 📝 라이선스
 
 이 프로젝트는 Livbee 프로젝트의 일부입니다.
+
+---
+
+## 👥 기여
+
+프로젝트에 기여하고 싶으시다면, 이슈를 생성하거나 Pull Request를 제출해주세요.
