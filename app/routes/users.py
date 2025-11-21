@@ -42,7 +42,7 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
-    role: UserRole
+    role: Optional[UserRole] = None  # 선택적: 제공되지 않으면 사용자의 실제 role 사용
 
 
 class UserResponse(BaseModel):
@@ -126,27 +126,30 @@ async def login(
 ):
     """
     로그인
-    이메일, 비밀번호, 역할을 받아 로그인 처리 후 JWT 토큰을 발급
+    이메일, 비밀번호를 받아 로그인 처리 후 JWT 토큰을 발급
+    역할(role)은 선택적이며, 제공되지 않으면 사용자의 실제 역할을 사용
     """
     email = request.email.lower().strip()
     password = request.password
-    role = request.role
+    requested_role = request.role
 
-    if not email or not password or not role:
+    if not email or not password:
         return fail_response("VALIDATION_MISSING_FIELDS", status.HTTP_400_BAD_REQUEST)
 
     # 이메일로 사용자 찾기
     user = db.query(User).filter(User.email == email).first()
+    
+    # 사용자가 존재하지 않는 경우
     if not user:
         return fail_response("INVALID_CREDENTIALS", status.HTTP_401_UNAUTHORIZED)
-
-    # 역할 확인
-    if user.role != role.value:
-        return fail_response("ROLE_MISMATCH", status.HTTP_401_UNAUTHORIZED)
 
     # 비밀번호 확인
     if not verify_password(password, user.password):
         return fail_response("INVALID_CREDENTIALS", status.HTTP_401_UNAUTHORIZED)
+
+    # 역할 확인 (요청한 역할이 있으면 일치하는지 확인, 없으면 사용자의 실제 역할 사용)
+    if requested_role and user.role != requested_role.value:
+        return fail_response("ROLE_MISMATCH", status.HTTP_403_FORBIDDEN)
 
     # JWT 토큰 생성
     token = create_access_token(
@@ -155,8 +158,12 @@ async def login(
 
     return success_response({
         "token": token,
-        "name": user.name,
-        "role": user.role
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role
+        }
     })
 
 
