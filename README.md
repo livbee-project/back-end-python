@@ -199,6 +199,16 @@ alembic history
 - `GET /api/v1/portfolios`: 전체 포트폴리오 목록 조회 (페이지네이션)
 - `GET /api/v1/portfolios/{portfolio_id}`: 특정 포트폴리오 상세 조회
 
+#### 모델 관리 (`/api/v1/models`)
+
+- `GET /api/v1/models`: 모델 목록 조회 (페이지네이션, published 상태만)
+- `GET /api/v1/models/{model_id}`: 특정 모델 상세 조회
+- `POST /api/v1/models`: 새 모델 등록 (showhost, 인증 필요, 포트폴리오와 동일한 데이터)
+- `PUT /api/v1/models/{model_id}`: 모델 정보 수정 (showhost, 인증 필요)
+- `DELETE /api/v1/models/{model_id}`: 모델 삭제 (showhost, 인증 필요)
+
+> **참고**: `/models` 엔드포인트는 `/portfolios`와 동일한 데이터를 사용하며, 프론트엔드 호환성을 위해 제공됩니다.
+
 #### 캠페인/공고 관리 (`/api/v1/campaigns`)
 
 - `GET /api/v1/campaigns/meta`: 캠페인 메타데이터 조회 (카테고리, 브랜드 목록)

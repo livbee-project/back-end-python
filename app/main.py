@@ -155,10 +155,11 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 # 라우터 등록
-from app.routes import users, portfolios, campaigns, applications, proposals, news, studios
+from app.routes import users, portfolios, models, campaigns, applications, proposals, news, studios
 
 app.include_router(users.router, prefix=settings.API_BASE_PATH)
 app.include_router(portfolios.router, prefix=settings.API_BASE_PATH)
+app.include_router(models.router, prefix=settings.API_BASE_PATH)
 app.include_router(campaigns.router, prefix=settings.API_BASE_PATH)
 app.include_router(applications.router, prefix=settings.API_BASE_PATH)
 app.include_router(proposals.router, prefix=settings.API_BASE_PATH)
