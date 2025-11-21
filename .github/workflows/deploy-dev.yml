@@ -30,7 +30,7 @@ jobs:
 
       - name: Save Docker image
         run: |
-          docker save livbee-backend-dev | gzip -9 > livbee-backend-dev.tar.gz
+          docker save livbee-backend-dev | gzip -1 > livbee-backend-dev.tar.gz
 
       - name: Copy Docker image to server
         uses: appleboy/scp-action@v0.1.7
