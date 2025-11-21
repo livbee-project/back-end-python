@@ -1,0 +1,92 @@
+name: Deploy to Dev Environment
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  deploy:
+    name: Deploy to Dev Server
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t livbee-backend-dev .
+          docker tag livbee-backend-dev livbee-backend-dev:${{ github.sha }}
+
+      - name: Save Docker image
+        run: |
+          docker save livbee-backend-dev | gzip > livbee-backend-dev.tar.gz
+
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: 22
+          source: "."
+          target: "/home/${{ secrets.DEV_SERVER_USER }}/livbee-backend"
+          strip_components: 0
+          rm: false
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /home/${{ secrets.DEV_SERVER_USER }}/livbee-backend
+            
+            # Docker 이미지 로드
+            if [ -f livbee-backend-dev.tar.gz ]; then
+              docker load < livbee-backend-dev.tar.gz
+              rm -f livbee-backend-dev.tar.gz
+            fi
+            
+            # .env 파일 동적 생성
+            cat > .env <<EOF
+            DB_HOST=${{ secrets.DEV_DB_HOST }}
+            DB_PORT=${{ secrets.DEV_DB_PORT }}
+            DB_NAME=${{ secrets.DEV_DB_NAME }}
+            DB_USER=${{ secrets.DEV_DB_USER }}
+            DB_PASSWORD=${{ secrets.DEV_DB_PASSWORD }}
+            EOF
+            
+            # 기존 컨테이너 중지 및 제거
+            docker stop livbee-backend-dev 2>/dev/null || true
+            docker rm livbee-backend-dev 2>/dev/null || true
+            
+            # 새 컨테이너 실행
+            docker run -d \
+              --name livbee-backend-dev \
+              --restart always \
+              -p 8000:8000 \
+              --env-file .env \
+              livbee-backend-dev
+            
+            echo "✅ 배포 완료!"
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            sleep 10
+            curl -f http://localhost:8000/db-test || exit 1
+            echo "✅ 헬스체크 성공!"
+

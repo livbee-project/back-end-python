@@ -1,0 +1,85 @@
+name: Deploy to Prod Environment
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  deploy:
+    name: Deploy to Prod Server
+    runs-on: ubuntu-latest
+    environment: production  # GitHub에서 수동 승인 설정 가능
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t livbee-backend:prod-latest .
+          docker tag livbee-backend:prod-latest livbee-backend:prod-${{ github.sha }}
+
+      - name: Save Docker image
+        run: |
+          docker save livbee-backend:prod-latest | gzip > livbee-backend-prod.tar.gz
+
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: 22
+          source: "."
+          target: "/home/${{ secrets.PROD_SERVER_USER }}/livbee-backend"
+          strip_components: 0
+          rm: false
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /home/${{ secrets.PROD_SERVER_USER }}/livbee-backend
+            
+            # Docker 이미지 로드
+            if [ -f livbee-backend-prod.tar.gz ]; then
+              docker load < livbee-backend-prod.tar.gz
+              rm -f livbee-backend-prod.tar.gz
+            fi
+            
+            # 환경변수 설정
+            export PROD_DB_HOST="${{ secrets.PROD_DB_HOST }}"
+            export PROD_DB_PORT="${{ secrets.PROD_DB_PORT }}"
+            export PROD_DB_NAME="${{ secrets.PROD_DB_NAME }}"
+            export PROD_DB_USER="${{ secrets.PROD_DB_USER }}"
+            export PROD_DB_PASSWORD="${{ secrets.PROD_DB_PASSWORD }}"
+            export BUILD_LOCALLY="false"
+            
+            # 배포 스크립트 실행 권한 부여
+            chmod +x deploy/deploy.sh
+            
+            # 배포 실행
+            ./deploy/deploy.sh prod
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            sleep 10
+            curl -f http://localhost:8000/db-test || exit 1
+            echo "✅ 헬스체크 성공!"
+
