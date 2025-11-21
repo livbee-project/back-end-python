@@ -1,0 +1,93 @@
+name: Deploy to Prod Environment
+
+on:
+  push:
+    branches:
+      - prod
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  deploy:
+    name: Deploy to Prod Server
+    runs-on: ubuntu-latest
+    environment: production  # GitHub에서 수동 승인 설정 가능
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t livbee-backend-prod .
+          docker tag livbee-backend-prod livbee-backend-prod:${{ github.sha }}
+
+      - name: Save Docker image
+        run: |
+          docker save livbee-backend-prod | gzip > livbee-backend-prod.tar.gz
+
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: 22
+          source: "."
+          target: "/home/${{ secrets.PROD_SERVER_USER }}/livbee-backend"
+          strip_components: 0
+          rm: false
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /home/${{ secrets.PROD_SERVER_USER }}/livbee-backend
+            
+            # Docker 이미지 로드
+            if [ -f livbee-backend-prod.tar.gz ]; then
+              docker load < livbee-backend-prod.tar.gz
+              rm -f livbee-backend-prod.tar.gz
+            fi
+            
+            # .env 파일 동적 생성
+            cat > .env <<EOF
+            DB_HOST=${{ secrets.PROD_DB_HOST }}
+            DB_PORT=${{ secrets.PROD_DB_PORT }}
+            DB_NAME=${{ secrets.PROD_DB_NAME }}
+            DB_USER=${{ secrets.PROD_DB_USER }}
+            DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}
+            EOF
+            
+            # 기존 컨테이너 중지 및 제거
+            docker stop livbee-backend-prod 2>/dev/null || true
+            docker rm livbee-backend-prod 2>/dev/null || true
+            
+            # 새 컨테이너 실행
+            docker run -d \
+              --name livbee-backend-prod \
+              --restart always \
+              -p 8000:8000 \
+              --env-file .env \
+              livbee-backend-prod
+            
+            echo "✅ 배포 완료!"
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            sleep 10
+            curl -f http://localhost:8000/db-test || exit 1
+            echo "✅ 헬스체크 성공!"
+
