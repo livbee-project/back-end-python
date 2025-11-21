@@ -133,25 +133,43 @@ app.add_middleware(
 )
 
 
-# 전역 예외 핸들러
+# 전역 예외 핸들러 (CORS 헤더 포함)
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """요청 검증 오류 처리"""
-    return fail_response("VALIDATION_FAILED", status.HTTP_422_UNPROCESSABLE_ENTITY)
+    response = fail_response("VALIDATION_FAILED", status.HTTP_422_UNPROCESSABLE_ENTITY)
+    # CORS 헤더 명시적 추가
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 @app.exception_handler(SQLAlchemyError)
 async def database_exception_handler(request: Request, exc: SQLAlchemyError):
     """데이터베이스 오류 처리"""
-    logger.error(f"Database error: {exc}")
-    return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    logger.error(f"Database error: {exc}", exc_info=True)
+    response = fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # CORS 헤더 명시적 추가
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """일반 예외 처리"""
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
-    return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    response = fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # CORS 헤더 명시적 추가
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 # 라우터 등록
