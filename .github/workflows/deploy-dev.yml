@@ -92,11 +92,25 @@ jobs:
 
             LOGIN_DONE=0
             if [ -n "${GHCR_DEPLOY_USERNAME:-}" ] && [ -n "${GHCR_DEPLOY_TOKEN:-}" ]; then
-              echo "${GHCR_DEPLOY_TOKEN}" | docker login ghcr.io -u "${GHCR_DEPLOY_USERNAME}" --password-stdin
-              LOGIN_DONE=1
+              if echo "${GHCR_DEPLOY_TOKEN}" | docker login ghcr.io -u "${GHCR_DEPLOY_USERNAME}" --password-stdin; then
+                LOGIN_DONE=1
+                echo "✅ GHCR 로그인 성공"
+              else
+                echo "❌ GHCR 로그인 실패"
+                exit 1
+              fi
+            else
+              echo "⚠️ GHCR 자격증명이 없습니다. 익명 pull 시도 (패키지가 public이어야 합니다)"
             fi
 
-            docker pull "$IMAGE"
+            echo "📥 이미지 pull 시작: $IMAGE"
+            if docker pull "$IMAGE" 2>&1; then
+              echo "✅ 이미지 pull 성공"
+            else
+              echo "❌ 이미지 pull 실패"
+              echo "이미지가 존재하지 않거나 인증이 필요합니다."
+              exit 1
+            fi
 
             cat > .env <<EOF
             DB_HOST=${{ secrets.DEV_DB_HOST }}
