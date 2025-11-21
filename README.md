@@ -159,9 +159,68 @@ alembic history
 
 ### API 엔드포인트
 
+모든 API 엔드포인트는 `/api/v1` prefix를 사용합니다.
+
+#### 기본 엔드포인트
+
 - `GET /`: 기본 Hello 메시지 반환
+- `GET /healthz`: 헬스체크 (liveness probe)
+- `GET /readyz`: 준비 상태 체크 (readiness probe, DB 연결 확인)
 - `GET /db-test`: 데이터베이스 연결 테스트 및 버전 정보 반환
 - `GET /api-docs`: Swagger UI (개발 환경에서만 활성화)
+
+#### 사용자 인증 (`/api/v1/users`)
+
+- `POST /api/v1/users/signup`: 회원가입 (brand/showhost)
+- `POST /api/v1/users/login`: 로그인 (JWT 토큰 발급)
+- `GET /api/v1/users/me`: 현재 사용자 정보 조회 (인증 필요)
+
+#### 포트폴리오 관리 (`/api/v1/portfolios`)
+
+- `GET /api/v1/portfolios/my/list`: 내 포트폴리오 목록 조회 (showhost, 인증 필요)
+- `POST /api/v1/portfolios`: 새 포트폴리오 생성 (showhost, 인증 필요)
+- `PUT /api/v1/portfolios/{portfolio_id}`: 포트폴리오 수정 (showhost, 인증 필요)
+- `DELETE /api/v1/portfolios/{portfolio_id}`: 포트폴리오 삭제 (showhost, 인증 필요)
+- `GET /api/v1/portfolios`: 전체 포트폴리오 목록 조회 (페이지네이션)
+- `GET /api/v1/portfolios/{portfolio_id}`: 특정 포트폴리오 상세 조회
+
+#### 캠페인/공고 관리 (`/api/v1/campaigns`)
+
+- `GET /api/v1/campaigns/meta`: 캠페인 메타데이터 조회 (카테고리, 브랜드 목록)
+- `POST /api/v1/campaigns`: 새 캠페인 생성 (brand/admin, 인증 필요)
+- `GET /api/v1/campaigns`: 전체 캠페인 목록 조회 (검색, 필터링, 페이지네이션)
+- `GET /api/v1/campaigns/mine`: 내가 생성한 캠페인 목록 (brand, 인증 필요)
+- `GET /api/v1/campaigns/{campaign_id}`: 특정 캠페인 상세 조회
+- `PUT /api/v1/campaigns/{campaign_id}`: 캠페인 수정 (brand/admin, 인증 필요)
+- `DELETE /api/v1/campaigns/{campaign_id}`: 캠페인 삭제 (brand/admin, 인증 필요)
+
+#### 지원서 관리 (`/api/v1/applications`)
+
+- `GET /api/v1/applications/mine`: 내 지원서 목록 조회 (인증 필요)
+- `POST /api/v1/applications`: 새 지원서 생성 (인증 필요)
+- `GET /api/v1/applications`: 전체 지원서 목록 조회 (brand, 인증 필요, 페이지네이션)
+- `PATCH /api/v1/applications/{application_id}`: 지원서 상태 업데이트 (brand, 인증 필요)
+
+#### 제안 관리 (`/api/v1/proposals`)
+
+- `POST /api/v1/proposals`: 새 제안 생성 (brand, 인증 필요)
+- `GET /api/v1/proposals/sent`: 내가 보낸 제안 목록 (brand, 인증 필요)
+- `GET /api/v1/proposals/received`: 내가 받은 제안 목록 (showhost, 인증 필요)
+- `PATCH /api/v1/proposals/{proposal_id}/withdraw`: 제안 철회 (brand, 인증 필요)
+
+#### 뉴스/공지사항 관리 (`/api/v1/news`)
+
+- `GET /api/v1/news`: 전체 뉴스 목록 조회 (페이지네이션)
+- `GET /api/v1/news/{news_id}`: 특정 뉴스 상세 조회
+- `POST /api/v1/news`: 새 뉴스 생성 (showhost, 인증 필요)
+- `PUT /api/v1/news/{news_id}`: 뉴스 수정 (showhost, 인증 필요)
+- `DELETE /api/v1/news/{news_id}`: 뉴스 삭제 (showhost, 인증 필요)
+
+#### 스튜디오 관리 (`/api/v1/studios`)
+
+- `POST /api/v1/studios`: 새 스튜디오 정보 생성
+- `PUT /api/v1/studios/{studio_id}`: 스튜디오 정보 수정
+- `GET /api/v1/studios/{studio_id}`: 특정 스튜디오 정보 조회
 
 ### 환경변수
 
