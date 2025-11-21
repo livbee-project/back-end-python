@@ -84,7 +84,7 @@ app = FastAPI(
     version="1.0.0",
     description="Livbee 백엔드 API 서버 - 쇼호스트와 브랜드를 연결하는 플랫폼",
     lifespan=lifespan,
-    docs_url="/api-docs" if settings.NODE_ENV != "production" else None,
+    docs_url="/api-docs",  # 모든 환경에서 Swagger UI 활성화
     redoc_url=None,
 )
 

@@ -81,10 +81,16 @@ FastAPI 기반 백엔드 API 서버입니다.
 
 #### Swagger UI 사용 방법
 
-1. **API 문서 접속**: http://localhost:8000/api-docs
+**접속 URL:**
+- 로컬 개발: http://localhost:8000/api-docs
+- Dev 환경: https://dev-api.livbee.co.kr/api-docs
+- Prod 환경: https://api.livbee.co.kr/api-docs
+
+**사용 방법:**
+1. **API 문서 접속**: 위 URL 중 하나로 접속
 2. **인증 설정**:
    - 우측 상단의 "Authorize" 버튼 클릭
-   - `Bearer {token}` 형식으로 JWT 토큰 입력
+   - `Bearer {token}` 형식으로 JWT 토큰 입력 (또는 토큰만 입력)
    - 로그인 API(`POST /api/v1/users/login`)에서 받은 토큰 사용
 3. **API 테스트**: 각 엔드포인트에서 "Try it out" 버튼을 클릭하여 직접 테스트 가능
 
@@ -176,7 +182,7 @@ alembic history
 - `GET /healthz`: 헬스체크 (liveness probe)
 - `GET /readyz`: 준비 상태 체크 (readiness probe, DB 연결 확인)
 - `GET /db-test`: 데이터베이스 연결 테스트 및 버전 정보 반환
-- `GET /api-docs`: Swagger UI (개발 환경에서만 활성화)
+- `GET /api-docs`: Swagger UI (모든 환경에서 활성화)
 
 #### 사용자 인증 (`/api/v1/users`)
 
