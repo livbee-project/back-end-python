@@ -74,7 +74,26 @@ jobs:
           build-args: |
             GHCR_BASE_IMAGE=${{ steps.meta.outputs.base_image }}
 
-      - name: Deploy to server
+      - name: Save Docker image (fallback)
+        if: steps.ghcr-creds.outputs.using_secret == 'false'
+        run: |
+          docker save ${{ steps.meta.outputs.app_image }}:${{ github.sha }} | gzip -1 > livbee-backend-prod.tar.gz
+
+      - name: Copy Docker image to server (fallback)
+        if: steps.ghcr-creds.outputs.using_secret == 'false'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: 22
+          source: "livbee-backend-prod.tar.gz"
+          target: "/home/${{ secrets.PROD_SERVER_USER }}/livbee-backend"
+          strip_components: 0
+          rm: true
+
+      - name: Deploy to server (GHCR)
+        if: steps.ghcr-creds.outputs.using_secret == 'true'
         uses: appleboy/ssh-action@v1.0.3
         env:
           GHCR_DEPLOY_USERNAME: ${{ secrets.GHCR_USERNAME }}
@@ -121,6 +140,45 @@ jobs:
             if [ "$LOGIN_DONE" -eq 1 ]; then
               docker logout ghcr.io
             fi
+            echo "✅ 배포 완료!"
+
+      - name: Deploy to server (fallback tarball)
+        if: steps.ghcr-creds.outputs.using_secret == 'false'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            IMAGE="livbee-backend-prod:${{ github.sha }}"
+            cd /home/${{ secrets.PROD_SERVER_USER }}/livbee-backend
+
+            if [ -f livbee-backend-prod.tar.gz ]; then
+              docker load < livbee-backend-prod.tar.gz
+              rm -f livbee-backend-prod.tar.gz
+            fi
+
+            cat > .env <<EOF
+            DB_HOST=${{ secrets.PROD_DB_HOST }}
+            DB_PORT=${{ secrets.PROD_DB_PORT }}
+            DB_NAME=${{ secrets.PROD_DB_NAME }}
+            DB_USER=${{ secrets.PROD_DB_USER }}
+            DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}
+            JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
+            NODE_ENV=production
+            EOF
+
+            docker stop livbee-backend-prod 2>/dev/null || true
+            docker rm livbee-backend-prod 2>/dev/null || true
+
+            docker run -d \
+              --name livbee-backend-prod \
+              --restart always \
+              -p 8000:8000 \
+              --env-file .env \
+              "$IMAGE"
+
             echo "✅ 배포 완료!"
 
       - name: Health check
