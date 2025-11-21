@@ -112,8 +112,11 @@ back-end-python/
 | `DB_NAME` | 데이터베이스 이름 | - |
 | `DB_USER` | 데이터베이스 사용자명 | - |
 | `DB_PASSWORD` | 데이터베이스 비밀번호 | - |
-| `GHCR_USERNAME` | GHCR 로그인용 GitHub 사용자명 (서버 측 docker login) | Secrets |
-| `GHCR_TOKEN` | GHCR PAT (read/write:packages) | Secrets |
+| `GHCR_USERNAME` | (선택) GHCR 로그인용 GitHub 사용자명 (패키지가 Private일 때 필요) | Secrets |
+| `GHCR_TOKEN` | (선택) GHCR PAT (read/write:packages) | Secrets |
+
+> 📝 `GHCR_USERNAME`/`GHCR_TOKEN`을 설정하지 않으면 GitHub Actions는 `GITHUB_TOKEN`으로 push하고, 서버는 익명으로 pull을 시도합니다.  
+> 이 경우 GHCR 패키지를 Public로 공개해야 합니다.
 
 **보안 주의:** 
 - `.env` 파일은 절대 Git에 커밋하지 마세요
@@ -146,7 +149,8 @@ back-end-python/
 1. **GitHub Secrets 설정**
    - 레포지토리 Settings → Secrets and variables → Actions
    - 서버 호스트, SSH 키, 데이터베이스 정보
-   - GHCR 접근용 `GHCR_USERNAME`, `GHCR_TOKEN` (Packages:read/write 권한이 있는 Personal Access Token)
+   - (선택) GHCR 패키지가 Private인 경우 `GHCR_USERNAME`, `GHCR_TOKEN` 추가  
+     👉 없으면 워크플로우는 `GITHUB_TOKEN`으로 push하고, 서버는 익명으로 pull 시도하므로 패키지를 Public로 공개해야 합니다.
 
 2. **서버 초기 설정**
    - Docker 및 Docker Compose 설치

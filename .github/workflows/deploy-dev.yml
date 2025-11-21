@@ -22,6 +22,24 @@ jobs:
           echo "base_image=ghcr.io/$OWNER/livbee-backend-base:latest" >> $GITHUB_OUTPUT
           echo "app_image=ghcr.io/$OWNER/livbee-backend-dev" >> $GITHUB_OUTPUT
 
+      - name: Prepare GHCR credentials
+        id: ghcr-creds
+        env:
+          SECRET_USER: ${{ secrets.GHCR_USERNAME }}
+          SECRET_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          FALLBACK_USER: ${{ github.actor }}
+          FALLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "$SECRET_USER" ] && [ -n "$SECRET_TOKEN" ]; then
+            echo "username=$SECRET_USER" >> $GITHUB_OUTPUT
+            echo "password=$SECRET_TOKEN" >> $GITHUB_OUTPUT
+            echo "using_secret=true" >> $GITHUB_OUTPUT
+          else
+            echo "username=$FALLBACK_USER" >> $GITHUB_OUTPUT
+            echo "password=$FALLBACK_TOKEN" >> $GITHUB_OUTPUT
+            echo "using_secret=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -29,8 +47,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          username: ${{ steps.ghcr-creds.outputs.username }}
+          password: ${{ steps.ghcr-creds.outputs.password }}
 
       - name: Build & push base image
         uses: docker/build-push-action@v5
@@ -57,6 +75,9 @@ jobs:
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_DEPLOY_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_DEPLOY_TOKEN: ${{ secrets.GHCR_TOKEN }}
         with:
           host: ${{ secrets.DEV_SERVER_HOST }}
           username: ${{ secrets.DEV_SERVER_USER }}
@@ -66,7 +87,14 @@ jobs:
             IMAGE="${{ steps.meta.outputs.app_image }}:${{ github.sha }}"
             cd /home/${{ secrets.DEV_SERVER_USER }}/livbee-backend
 
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            LOGIN_DONE=0
+            if [ -n "${GHCR_DEPLOY_USERNAME}" ] && [ -n "${GHCR_DEPLOY_TOKEN}" ]; then
+              echo "${GHCR_DEPLOY_TOKEN}" | docker login ghcr.io -u "${GHCR_DEPLOY_USERNAME}" --password-stdin
+              LOGIN_DONE=1
+            else
+              echo "⚠️ GHCR 자격증명이 설정되지 않았습니다. 익명으로 pull 시도합니다 (패키지가 public이어야 합니다)."
+            fi
+
             docker pull "$IMAGE"
 
             cat > .env <<EOF
@@ -89,7 +117,9 @@ jobs:
               --env-file .env \
               "$IMAGE"
 
-            docker logout ghcr.io
+            if [ "$LOGIN_DONE" -eq 1 ]; then
+              docker logout ghcr.io
+            fi
             echo "✅ 배포 완료!"
 
       - name: Health check
