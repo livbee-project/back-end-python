@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from app.core.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.middleware.auth import get_current_user
@@ -129,33 +129,78 @@ async def login(
     이메일, 비밀번호를 받아 로그인 처리 후 JWT 토큰을 발급
     역할(role)은 선택적이며, 제공되지 않으면 사용자의 실제 역할을 사용
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
-        email = request.email.lower().strip()
-        password = request.password
+        # 입력값 검증 및 정규화
+        email = request.email.lower().strip() if request.email else ""
+        password = request.password or ""
         requested_role = request.role
 
+        logger.info(f"Login attempt for email: {email[:3]}*** (role: {requested_role})")
+
         if not email or not password:
+            logger.warning(f"Login failed: Missing email or password")
             return fail_response("VALIDATION_MISSING_FIELDS", status.HTTP_400_BAD_REQUEST)
 
+        # 데이터베이스 연결 확인
+        try:
+            db.execute(text("SELECT 1"))
+        except Exception as db_error:
+            logger.error(f"Database connection error: {db_error}", exc_info=True)
+            return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         # 이메일로 사용자 찾기
-        user = db.query(User).filter(User.email == email).first()
+        try:
+            user = db.query(User).filter(User.email == email).first()
+        except Exception as query_error:
+            logger.error(f"Database query error: {query_error}", exc_info=True)
+            return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         # 사용자가 존재하지 않는 경우
         if not user:
+            logger.warning(f"Login failed: User not found for email: {email[:3]}***")
             return fail_response("INVALID_CREDENTIALS", status.HTTP_401_UNAUTHORIZED)
+
+        # 사용자 비밀번호 확인
+        if not user.password:
+            logger.error(f"User {user.id} has no password hash")
+            return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # 비밀번호 확인
-        if not verify_password(password, user.password):
-            return fail_response("INVALID_CREDENTIALS", status.HTTP_401_UNAUTHORIZED)
+        try:
+            if not verify_password(password, user.password):
+                logger.warning(f"Login failed: Invalid password for email: {email[:3]}***")
+                return fail_response("INVALID_CREDENTIALS", status.HTTP_401_UNAUTHORIZED)
+        except Exception as pwd_error:
+            logger.error(f"Password verification error: {pwd_error}", exc_info=True)
+            return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # 역할 확인 (요청한 역할이 있으면 일치하는지 확인, 없으면 사용자의 실제 역할 사용)
-        if requested_role and user.role != requested_role.value:
-            return fail_response("ROLE_MISMATCH", status.HTTP_403_FORBIDDEN)
+        user_role_value = user.role.value if hasattr(user.role, 'value') else str(user.role)
+        if requested_role:
+            requested_role_value = requested_role.value if hasattr(requested_role, 'value') else str(requested_role)
+            if user_role_value != requested_role_value:
+                logger.warning(f"Login failed: Role mismatch. User role: {user_role_value}, Requested: {requested_role_value}")
+                return fail_response("ROLE_MISMATCH", status.HTTP_403_FORBIDDEN)
+
+        # JWT_SECRET 확인
+        from app.core.config import settings
+        if not settings.JWT_SECRET or not settings.JWT_SECRET.strip():
+            logger.error("JWT_SECRET is not configured")
+            return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # JWT 토큰 생성
-        token = create_access_token(
-            data={"sub": user.id, "role": user.role},
-        )
+        try:
+            token = create_access_token(
+                data={"sub": user.id, "role": user_role_value},
+            )
+        except Exception as token_error:
+            logger.error(f"JWT token creation error: {token_error}", exc_info=True)
+            return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        logger.info(f"Login successful for user: {user.id} (email: {email[:3]}***)")
 
         return success_response({
             "token": token,
@@ -163,14 +208,12 @@ async def login(
                 "id": user.id,
                 "name": user.name,
                 "email": user.email,
-                "role": user.role
+                "role": user_role_value
             }
         })
     except Exception as e:
         # 예외 발생 시 로깅 및 안전한 에러 응답
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Login error: {e}", exc_info=True)
+        logger.error(f"Login error (unexpected): {e}", exc_info=True)
         return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

@@ -14,7 +14,12 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """비밀번호 검증"""
-    return pwd_context.verify(plain_password, hashed_password)
+    if not plain_password or not hashed_password:
+        return False
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -32,7 +37,16 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     
     Returns:
         JWT 토큰 문자열
+    
+    Raises:
+        ValueError: JWT_SECRET이 설정되지 않았거나 데이터가 유효하지 않은 경우
     """
+    if not data:
+        raise ValueError("Token data cannot be empty")
+    
+    if not settings.JWT_SECRET or not settings.JWT_SECRET.strip():
+        raise ValueError("JWT_SECRET is not configured")
+    
     to_encode = data.copy()
     
     if expires_delta:
@@ -42,13 +56,15 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     
     to_encode.update({"exp": expire, "iat": datetime.utcnow()})
     
-    encoded_jwt = jwt.encode(
-        to_encode,
-        settings.JWT_SECRET,
-        algorithm=settings.JWT_ALGORITHM
-    )
-    
-    return encoded_jwt
+    try:
+        encoded_jwt = jwt.encode(
+            to_encode,
+            settings.JWT_SECRET,
+            algorithm=settings.JWT_ALGORITHM
+        )
+        return encoded_jwt
+    except Exception as e:
+        raise ValueError(f"Failed to encode JWT token: {str(e)}")
 
 
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
