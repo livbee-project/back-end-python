@@ -29,19 +29,22 @@ jobs:
           SECRET_USER: ${{ secrets.GHCR_USERNAME }}
           SECRET_TOKEN: ${{ secrets.GHCR_TOKEN }}
           FALLBACK_USER: ${{ github.actor }}
-          FALLBACK_TOKEN: ${{ github.token }}
+          FALLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -n "$SECRET_USER" ] && [ -n "$SECRET_TOKEN" ]; then
             CI_USER="$SECRET_USER"
             CI_TOKEN="$SECRET_TOKEN"
+            echo "✅ GitHub Secrets 사용"
           else
             CI_USER="$FALLBACK_USER"
             CI_TOKEN="$FALLBACK_TOKEN"
+            echo "⚠️ Fallback 자격증명 사용 (github.actor + GITHUB_TOKEN)"
           fi
           echo "username=$CI_USER" >> $GITHUB_OUTPUT
           echo "password=$CI_TOKEN" >> $GITHUB_OUTPUT
           echo "deploy_username=$CI_USER" >> $GITHUB_OUTPUT
           echo "deploy_token=$CI_TOKEN" >> $GITHUB_OUTPUT
+          echo "🔍 설정된 사용자: $CI_USER"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -81,6 +84,8 @@ jobs:
         env:
           GHCR_DEPLOY_USERNAME: ${{ steps.ghcr-creds.outputs.deploy_username }}
           GHCR_DEPLOY_TOKEN: ${{ steps.ghcr-creds.outputs.deploy_token }}
+          FALLBACK_USER: ${{ github.actor }}
+          FALLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.PROD_SERVER_HOST }}
           username: ${{ secrets.PROD_SERVER_USER }}
@@ -91,9 +96,16 @@ jobs:
             IMAGE="${{ steps.meta.outputs.app_image }}:${{ github.sha }}"
             cd /home/${{ secrets.PROD_SERVER_USER }}/livbee-backend
 
+            # Fallback 처리
+            DEPLOY_USER="${GHCR_DEPLOY_USERNAME:-${FALLBACK_USER:-}}"
+            DEPLOY_TOKEN="${GHCR_DEPLOY_TOKEN:-${FALLBACK_TOKEN:-}}"
+
+            echo "🔍 디버깅: DEPLOY_USER=${DEPLOY_USER:-'(비어있음)'}"
+            echo "🔍 디버깅: DEPLOY_TOKEN=${DEPLOY_TOKEN:+'(설정됨)'}${DEPLOY_TOKEN:-'(비어있음)'}"
+
             LOGIN_DONE=0
-            if [ -n "${GHCR_DEPLOY_USERNAME:-}" ] && [ -n "${GHCR_DEPLOY_TOKEN:-}" ]; then
-              if echo "${GHCR_DEPLOY_TOKEN}" | docker login ghcr.io -u "${GHCR_DEPLOY_USERNAME}" --password-stdin 2>&1; then
+            if [ -n "$DEPLOY_USER" ] && [ -n "$DEPLOY_TOKEN" ]; then
+              if echo "$DEPLOY_TOKEN" | docker login ghcr.io -u "$DEPLOY_USER" --password-stdin 2>&1; then
                 LOGIN_DONE=1
                 echo "✅ GHCR 로그인 성공"
               else
