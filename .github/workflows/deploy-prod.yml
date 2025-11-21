@@ -74,6 +74,11 @@ jobs:
           build-args: |
             GHCR_BASE_IMAGE=${{ steps.meta.outputs.base_image }}
 
+      - name: Pull image for fallback
+        if: steps.ghcr-creds.outputs.using_secret == 'false'
+        run: |
+          docker pull ${{ steps.meta.outputs.app_image }}:${{ github.sha }}
+
       - name: Save Docker image (fallback)
         if: steps.ghcr-creds.outputs.using_secret == 'false'
         run: |
@@ -151,7 +156,8 @@ jobs:
           key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            IMAGE="livbee-backend-prod:${{ github.sha }}"
+            set -euo pipefail
+            IMAGE="${{ steps.meta.outputs.app_image }}:${{ github.sha }}"
             cd /home/${{ secrets.PROD_SERVER_USER }}/livbee-backend
 
             if [ -f livbee-backend-prod.tar.gz ]; then
