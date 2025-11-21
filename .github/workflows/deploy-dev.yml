@@ -28,8 +28,11 @@ jobs:
           SECRET_USER: ${{ secrets.GHCR_USERNAME }}
           SECRET_TOKEN: ${{ secrets.GHCR_TOKEN }}
         run: |
+          echo "🔍 디버깅: SECRET_USER=${SECRET_USER:+'(설정됨)'}${SECRET_USER:-'(비어있음)'}"
+          echo "🔍 디버깅: SECRET_TOKEN=${SECRET_TOKEN:+'(설정됨)'}${SECRET_TOKEN:-'(비어있음)'}"
           if [ -z "$SECRET_USER" ] || [ -z "$SECRET_TOKEN" ]; then
             echo "❌ GHCR_USERNAME 또는 GHCR_TOKEN이 설정되지 않았습니다."
+            echo "GitHub Secrets에 GHCR_USERNAME과 GHCR_TOKEN이 설정되어 있는지 확인해주세요."
             exit 1
           fi
           echo "username=$SECRET_USER" >> $GITHUB_OUTPUT
@@ -81,10 +84,19 @@ jobs:
           username: ${{ secrets.DEV_SERVER_USER }}
           key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
           port: 22
+          envs: GHCR_DEPLOY_USERNAME,GHCR_DEPLOY_TOKEN
           script: |
             set -eo pipefail
             IMAGE="${{ steps.meta.outputs.app_image }}:${{ github.sha }}"
             cd /home/${{ secrets.DEV_SERVER_USER }}/livbee-backend
+
+            # 디버깅: 환경변수 확인
+            echo "🔍 디버깅: 모든 환경변수 목록:"
+            env | grep -E "GHCR|GITHUB" || echo "GHCR 관련 환경변수 없음"
+            echo ""
+            echo "🔍 디버깅: GHCR_DEPLOY_USERNAME=${GHCR_DEPLOY_USERNAME:+'(설정됨)'}${GHCR_DEPLOY_USERNAME:-'(비어있음)'}"
+            echo "🔍 디버깅: GHCR_DEPLOY_TOKEN=${GHCR_DEPLOY_TOKEN:+'(설정됨)'}${GHCR_DEPLOY_TOKEN:-'(비어있음)'}"
+            echo ""
 
             # 자격증명 확인
             if [ -z "${GHCR_DEPLOY_USERNAME:-}" ] || [ -z "${GHCR_DEPLOY_TOKEN:-}" ]; then
