@@ -77,7 +77,16 @@ FastAPI 기반 백엔드 API 서버입니다.
 7. **API 테스트**
    - 기본 엔드포인트: http://localhost:8000/
    - DB 연결 테스트: http://localhost:8000/db-test
-   - API 문서: http://localhost:8000/api-docs
+   - API 문서: http://localhost:8000/api-docs (Swagger UI)
+
+#### Swagger UI 사용 방법
+
+1. **API 문서 접속**: http://localhost:8000/api-docs
+2. **인증 설정**:
+   - 우측 상단의 "Authorize" 버튼 클릭
+   - `Bearer {token}` 형식으로 JWT 토큰 입력
+   - 로그인 API(`POST /api/v1/users/login`)에서 받은 토큰 사용
+3. **API 테스트**: 각 엔드포인트에서 "Try it out" 버튼을 클릭하여 직접 테스트 가능
 
 ---
 

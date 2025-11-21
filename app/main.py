@@ -82,10 +82,46 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Livbee Backend API",
     version="1.0.0",
+    description="Livbee 백엔드 API 서버 - 쇼호스트와 브랜드를 연결하는 플랫폼",
     lifespan=lifespan,
     docs_url="/api-docs" if settings.NODE_ENV != "production" else None,
     redoc_url=None,
 )
+
+
+# Swagger UI에 JWT 인증 추가
+def custom_openapi():
+    """OpenAPI 스키마 커스터마이징 - JWT 인증 추가"""
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    from fastapi.openapi.utils import get_openapi
+    
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    
+    # JWT Bearer 인증 스키마 추가
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "JWT 토큰을 입력하세요. 로그인 API에서 받은 토큰을 사용합니다."
+        }
+    }
+    
+    # 모든 엔드포인트에 기본 보안 적용 (인증이 필요한 경우)
+    # 실제로는 각 라우터에서 security를 지정하므로 여기서는 스키마만 정의
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 # CORS 설정
 app.add_middleware(
