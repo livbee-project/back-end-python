@@ -4,7 +4,7 @@ Studio 라우트
 """
 from typing import Optional, List, Dict
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.studio import Studio
