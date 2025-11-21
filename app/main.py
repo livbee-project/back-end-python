@@ -56,13 +56,21 @@ async def lifespan(app: FastAPI):
     
     logger.info("✅ 필수 환경 변수 검증 완료")
     
-    # 데이터베이스 초기화
+    # 데이터베이스 연결 테스트 및 테이블 생성
     try:
-        init_db()
-        logger.info("✅ 데이터베이스 초기화 완료")
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        logger.info("✅ 데이터베이스 연결 확인 완료")
+        
+        # 테이블 생성 (모델이 정의된 경우)
+        try:
+            init_db()
+            logger.info("✅ 데이터베이스 테이블 초기화 완료")
+        except Exception as e:
+            logger.warning(f"⚠️ 테이블 초기화 실패 (계속 진행): {e}")
     except Exception as e:
-        logger.error(f"❌ 데이터베이스 초기화 실패: {e}")
-        # 프로덕션에서는 종료할 수도 있지만, 개발 환경에서는 계속 진행
+        logger.warning(f"⚠️ 데이터베이스 연결 실패 (계속 진행): {e}")
+        # 연결 실패해도 앱은 시작 (나중에 재시도 가능)
     
     yield
     
@@ -74,10 +82,46 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Livbee Backend API",
     version="1.0.0",
+    description="Livbee 백엔드 API 서버 - 쇼호스트와 브랜드를 연결하는 플랫폼",
     lifespan=lifespan,
-    docs_url="/api-docs" if settings.NODE_ENV != "production" else None,
+    docs_url="/api-docs",  # 모든 환경에서 Swagger UI 활성화
     redoc_url=None,
 )
+
+
+# Swagger UI에 JWT 인증 추가
+def custom_openapi():
+    """OpenAPI 스키마 커스터마이징 - JWT 인증 추가"""
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    from fastapi.openapi.utils import get_openapi
+    
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    
+    # JWT Bearer 인증 스키마 추가
+    openapi_schema["components"]["securitySchemes"] = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "JWT 토큰을 입력하세요. 로그인 API에서 받은 토큰을 사용합니다."
+        }
+    }
+    
+    # 모든 엔드포인트에 기본 보안 적용 (인증이 필요한 경우)
+    # 실제로는 각 라우터에서 security를 지정하므로 여기서는 스키마만 정의
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 # CORS 설정
 app.add_middleware(
@@ -89,26 +133,56 @@ app.add_middleware(
 )
 
 
-# 전역 예외 핸들러
+# 전역 예외 핸들러 (CORS 헤더 포함)
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """요청 검증 오류 처리"""
-    return fail_response("VALIDATION_FAILED", status.HTTP_422_UNPROCESSABLE_ENTITY)
+    response = fail_response("VALIDATION_FAILED", status.HTTP_422_UNPROCESSABLE_ENTITY)
+    # CORS 헤더 명시적 추가
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 @app.exception_handler(SQLAlchemyError)
 async def database_exception_handler(request: Request, exc: SQLAlchemyError):
     """데이터베이스 오류 처리"""
-    logger.error(f"Database error: {exc}")
-    return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    logger.error(f"Database error: {exc}", exc_info=True)
+    response = fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # CORS 헤더 명시적 추가
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """일반 예외 처리"""
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
-    return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    response = fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
+    # CORS 헤더 명시적 추가
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
+
+# 라우터 등록
+from app.routes import users, portfolios, models, campaigns, applications, proposals, news, studios
+
+app.include_router(users.router, prefix=settings.API_BASE_PATH)
+app.include_router(portfolios.router, prefix=settings.API_BASE_PATH)
+app.include_router(models.router, prefix=settings.API_BASE_PATH)
+app.include_router(campaigns.router, prefix=settings.API_BASE_PATH)
+app.include_router(applications.router, prefix=settings.API_BASE_PATH)
+app.include_router(proposals.router, prefix=settings.API_BASE_PATH)
+app.include_router(news.router, prefix=settings.API_BASE_PATH)
+app.include_router(studios.router, prefix=settings.API_BASE_PATH)
 
 # 기본 라우트
 @app.get("/")

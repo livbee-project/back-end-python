@@ -58,14 +58,43 @@ FastAPI 기반 백엔드 API 서버입니다.
    
    **⚠️ 보안 주의:** `.env` 파일은 절대 Git에 커밋하지 마세요. `.gitignore`에 포함되어 있습니다.
 
-5. **서버 실행**
+5. **데이터베이스 마이그레이션** (선택사항)
+   ```bash
+   # 초기 마이그레이션 생성 (첫 실행 시)
+   alembic revision --autogenerate -m "Initial migration"
+   
+   # 마이그레이션 적용
+   alembic upgrade head
+   ```
+   
+   > **참고**: 로컬 개발 환경에서는 `init_db()` 함수가 자동으로 테이블을 생성하지만, 프로덕션 환경에서는 Alembic 마이그레이션을 사용하는 것을 권장합니다.
+
+6. **서버 실행**
    ```bash
    uvicorn app.main:app --reload
    ```
 
-6. **API 테스트**
+7. **API 테스트**
    - 기본 엔드포인트: http://localhost:8000/
    - DB 연결 테스트: http://localhost:8000/db-test
+   - API 문서: http://localhost:8000/api-docs (Swagger UI)
+
+#### Swagger UI 사용 방법
+
+**접속 URL:**
+- 로컬 개발: http://localhost:8000/api-docs
+- Dev 환경: https://dev-api.livbee.co.kr/api-docs
+- Prod 환경: https://api.livbee.co.kr/api-docs
+
+**사용 방법:**
+1. **API 문서 접속**: 위 URL 중 하나로 접속
+2. **인증 설정**:
+   - 우측 상단의 "Authorize" 버튼 클릭
+   - `Bearer {token}` 형식으로 JWT 토큰 입력 (또는 토큰만 입력)
+   - 로그인 API(`POST /api/v1/users/login`)에서 받은 토큰 사용
+3. **API 테스트**: 각 엔드포인트에서 "Try it out" 버튼을 클릭하여 직접 테스트 가능
+
+---
 
 ---
 
@@ -75,7 +104,16 @@ FastAPI 기반 백엔드 API 서버입니다.
 back-end-python/
 ├── app/
 │   ├── __init__.py
-│   └── main.py              # FastAPI 메인 애플리케이션
+│   ├── main.py              # FastAPI 메인 애플리케이션
+│   ├── core/                # 핵심 설정 (config, database, security)
+│   ├── models/              # SQLAlchemy 모델
+│   ├── routes/              # API 라우터
+│   ├── middleware/          # 인증/권한 미들웨어
+│   └── utils/               # 유틸리티 함수
+├── alembic/                 # Alembic 마이그레이션
+│   ├── versions/            # 마이그레이션 파일
+│   ├── env.py               # Alembic 환경 설정
+│   └── script.py.mako       # 마이그레이션 템플릿
 ├── .github/
 │   └── workflows/
 │       ├── deploy-dev.yml   # Dev 환경 배포 워크플로우
@@ -86,7 +124,9 @@ back-end-python/
 ├── nginx/
 │   ├── nginx-dev.conf       # Dev Nginx 설정
 │   └── nginx-prod.conf      # Prod Nginx 설정
-├── Dockerfile               # Docker 이미지 빌드 설정
+├── alembic.ini              # Alembic 설정 파일
+├── Dockerfile               # 런타임 이미지 (베이스 이미지 의존)
+├── Dockerfile.base          # Python/시스템 패키지 사전 설치용 베이스 이미지
 ├── requirements.txt         # Python 패키지 의존성
 └── README.md               # 프로젝트 문서
 ```
@@ -95,10 +135,119 @@ back-end-python/
 
 ## 🔧 개발
 
+### 데이터베이스 마이그레이션
+
+이 프로젝트는 [Alembic](https://alembic.sqlalchemy.org/)을 사용하여 데이터베이스 스키마 버전 관리를 수행합니다.
+
+#### 초기 마이그레이션 생성
+
+```bash
+# 가상환경 활성화 후
+alembic revision --autogenerate -m "Initial migration"
+```
+
+#### 마이그레이션 적용
+
+```bash
+# 최신 마이그레이션 적용
+alembic upgrade head
+
+# 특정 리비전으로 업그레이드
+alembic upgrade <revision>
+
+# 한 단계 롤백
+alembic downgrade -1
+
+# 특정 리비전으로 롤백
+alembic downgrade <revision>
+```
+
+#### 마이그레이션 상태 확인
+
+```bash
+# 현재 마이그레이션 상태 확인
+alembic current
+
+# 마이그레이션 히스토리 확인
+alembic history
+```
+
+**참고**: 프로덕션 환경에서는 `init_db()` 대신 Alembic 마이그레이션을 사용하여 데이터베이스 스키마를 관리합니다.
+
 ### API 엔드포인트
 
+모든 API 엔드포인트는 `/api/v1` prefix를 사용합니다.
+
+#### 기본 엔드포인트
+
 - `GET /`: 기본 Hello 메시지 반환
+- `GET /healthz`: 헬스체크 (liveness probe)
+- `GET /readyz`: 준비 상태 체크 (readiness probe, DB 연결 확인)
 - `GET /db-test`: 데이터베이스 연결 테스트 및 버전 정보 반환
+- `GET /api-docs`: Swagger UI (모든 환경에서 활성화)
+
+#### 사용자 인증 (`/api/v1/users`)
+
+- `POST /api/v1/users/signup`: 회원가입 (brand/showhost)
+- `POST /api/v1/users/login`: 로그인 (JWT 토큰 발급)
+- `GET /api/v1/users/me`: 현재 사용자 정보 조회 (인증 필요)
+
+#### 포트폴리오 관리 (`/api/v1/portfolios`)
+
+- `GET /api/v1/portfolios/my/list`: 내 포트폴리오 목록 조회 (showhost, 인증 필요)
+- `POST /api/v1/portfolios`: 새 포트폴리오 생성 (showhost, 인증 필요)
+- `PUT /api/v1/portfolios/{portfolio_id}`: 포트폴리오 수정 (showhost, 인증 필요)
+- `DELETE /api/v1/portfolios/{portfolio_id}`: 포트폴리오 삭제 (showhost, 인증 필요)
+- `GET /api/v1/portfolios`: 전체 포트폴리오 목록 조회 (페이지네이션)
+- `GET /api/v1/portfolios/{portfolio_id}`: 특정 포트폴리오 상세 조회
+
+#### 모델 관리 (`/api/v1/models`)
+
+- `GET /api/v1/models`: 모델 목록 조회 (페이지네이션, published 상태만)
+- `GET /api/v1/models/{model_id}`: 특정 모델 상세 조회
+- `POST /api/v1/models`: 새 모델 등록 (showhost, 인증 필요, 포트폴리오와 동일한 데이터)
+- `PUT /api/v1/models/{model_id}`: 모델 정보 수정 (showhost, 인증 필요)
+- `DELETE /api/v1/models/{model_id}`: 모델 삭제 (showhost, 인증 필요)
+
+> **참고**: `/models` 엔드포인트는 `/portfolios`와 동일한 데이터를 사용하며, 프론트엔드 호환성을 위해 제공됩니다.
+
+#### 캠페인/공고 관리 (`/api/v1/campaigns`)
+
+- `GET /api/v1/campaigns/meta`: 캠페인 메타데이터 조회 (카테고리, 브랜드 목록)
+- `POST /api/v1/campaigns`: 새 캠페인 생성 (brand/admin, 인증 필요)
+- `GET /api/v1/campaigns`: 전체 캠페인 목록 조회 (검색, 필터링, 페이지네이션)
+- `GET /api/v1/campaigns/mine`: 내가 생성한 캠페인 목록 (brand, 인증 필요)
+- `GET /api/v1/campaigns/{campaign_id}`: 특정 캠페인 상세 조회
+- `PUT /api/v1/campaigns/{campaign_id}`: 캠페인 수정 (brand/admin, 인증 필요)
+- `DELETE /api/v1/campaigns/{campaign_id}`: 캠페인 삭제 (brand/admin, 인증 필요)
+
+#### 지원서 관리 (`/api/v1/applications`)
+
+- `GET /api/v1/applications/mine`: 내 지원서 목록 조회 (인증 필요)
+- `POST /api/v1/applications`: 새 지원서 생성 (인증 필요)
+- `GET /api/v1/applications`: 전체 지원서 목록 조회 (brand, 인증 필요, 페이지네이션)
+- `PATCH /api/v1/applications/{application_id}`: 지원서 상태 업데이트 (brand, 인증 필요)
+
+#### 제안 관리 (`/api/v1/proposals`)
+
+- `POST /api/v1/proposals`: 새 제안 생성 (brand, 인증 필요)
+- `GET /api/v1/proposals/sent`: 내가 보낸 제안 목록 (brand, 인증 필요)
+- `GET /api/v1/proposals/received`: 내가 받은 제안 목록 (showhost, 인증 필요)
+- `PATCH /api/v1/proposals/{proposal_id}/withdraw`: 제안 철회 (brand, 인증 필요)
+
+#### 뉴스/공지사항 관리 (`/api/v1/news`)
+
+- `GET /api/v1/news`: 전체 뉴스 목록 조회 (페이지네이션)
+- `GET /api/v1/news/{news_id}`: 특정 뉴스 상세 조회
+- `POST /api/v1/news`: 새 뉴스 생성 (showhost, 인증 필요)
+- `PUT /api/v1/news/{news_id}`: 뉴스 수정 (showhost, 인증 필요)
+- `DELETE /api/v1/news/{news_id}`: 뉴스 삭제 (showhost, 인증 필요)
+
+#### 스튜디오 관리 (`/api/v1/studios`)
+
+- `POST /api/v1/studios`: 새 스튜디오 정보 생성
+- `PUT /api/v1/studios/{studio_id}`: 스튜디오 정보 수정
+- `GET /api/v1/studios/{studio_id}`: 특정 스튜디오 정보 조회
 
 ### 환경변수
 
@@ -111,6 +260,17 @@ back-end-python/
 | `DB_NAME` | 데이터베이스 이름 | - |
 | `DB_USER` | 데이터베이스 사용자명 | - |
 | `DB_PASSWORD` | 데이터베이스 비밀번호 | - |
+| `GHCR_USERNAME` | (선택) GHCR 로그인용 GitHub 사용자명 (패키지가 Private일 때 필요) | Secrets |
+| `GHCR_TOKEN` | (선택) GHCR PAT (read/write:packages) | Secrets |
+
+> 📝 `GHCR_USERNAME`/`GHCR_TOKEN`을 설정하지 않으면 GitHub Actions는 `GITHUB_TOKEN`으로 push하고, 서버는 익명으로 pull을 시도합니다.  
+> 이 경우 GHCR 패키지를 Public로 공개해야 합니다.
+
+### 유틸리티 모듈
+
+- `app/utils/common.py`: HTML 정리(`sanitize_html`, `strip_tags`), 요약(`truncate_text`), 마스킹(`mask_email`, `mask_phone`), 전화번호 정규화(`normalize_phone_number`), Cloudinary 썸네일(`to_thumb`) 등
+- `app/utils/pagination.py`: `normalize_pagination`, `apply_pagination`, `build_paginated_payload`로 일관된 리스트 응답을 구성
+- `app/utils/response.py`: `success_response`, `fail_response`로 성공/실패 응답 포맷을 통일
 
 **보안 주의:** 
 - `.env` 파일은 절대 Git에 커밋하지 마세요
@@ -132,9 +292,9 @@ back-end-python/
 
 1. 코드를 브랜치에 push
 2. GitHub Actions 워크플로우 자동 실행
-3. Docker 이미지 빌드
-4. 서버에 파일 전송 (SCP)
-5. GitHub Secrets로 `.env` 파일 동적 생성
+3. Docker 베이스 이미지(`Dockerfile.base`) 빌드 후 GHCR에 push
+4. 애플리케이션 이미지(`Dockerfile`) 빌드 후 GHCR에 push
+5. 대상 서버에서 GHCR Pull + `.env` 동적 생성 (GitHub Actions가 기본 `GITHUB_TOKEN`을 SSH 세션으로 전달하여 로그인)
 6. 기존 컨테이너 중지/삭제 후 새 컨테이너 실행
 7. 헬스체크 수행
 
@@ -142,7 +302,9 @@ back-end-python/
 
 1. **GitHub Secrets 설정**
    - 레포지토리 Settings → Secrets and variables → Actions
-   - 서버 호스트, SSH 키, 데이터베이스 정보 등 설정
+   - 서버 호스트, SSH 키, 데이터베이스 정보
+   - (선택) GHCR 패키지가 Private인 경우 `GHCR_USERNAME`, `GHCR_TOKEN` 추가  
+     👉 Secrets를 제공하지 않으면 워크플로우가 기본 `GITHUB_TOKEN`(단일 실행 동안만 유효)을 서버로 전달해 pull을 수행합니다.
 
 2. **서버 초기 설정**
    - Docker 및 Docker Compose 설치
