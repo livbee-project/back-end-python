@@ -28,6 +28,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/healthz || exit 1
 
-# uvicorn으로 FastAPI 앱 실행 (워커 수 최적화)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# uvicorn으로 FastAPI 앱 실행 (단일 워커 - lifespan 이벤트 호환)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 

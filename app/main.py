@@ -56,13 +56,14 @@ async def lifespan(app: FastAPI):
     
     logger.info("✅ 필수 환경 변수 검증 완료")
     
-    # 데이터베이스 초기화
+    # 데이터베이스 연결 테스트 (초기화는 나중에 모델 생성 후)
     try:
-        init_db()
-        logger.info("✅ 데이터베이스 초기화 완료")
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        logger.info("✅ 데이터베이스 연결 확인 완료")
     except Exception as e:
-        logger.error(f"❌ 데이터베이스 초기화 실패: {e}")
-        # 프로덕션에서는 종료할 수도 있지만, 개발 환경에서는 계속 진행
+        logger.warning(f"⚠️ 데이터베이스 연결 실패 (계속 진행): {e}")
+        # 연결 실패해도 앱은 시작 (나중에 재시도 가능)
     
     yield
     

@@ -35,6 +35,13 @@ deploy/
 nginx/
 *.md
 
+# GitHub
+.github/
+
+# CI/CD artifacts
+*.tar.gz
+*.log
+
 # Environment
 .env
 .env.local
