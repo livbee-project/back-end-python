@@ -86,12 +86,12 @@ jobs:
           key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            set -euo pipefail
+            set -eo pipefail
             IMAGE="${{ steps.meta.outputs.app_image }}:${{ github.sha }}"
             cd /home/${{ secrets.DEV_SERVER_USER }}/livbee-backend
 
             LOGIN_DONE=0
-            if [ -n "${GHCR_DEPLOY_USERNAME}" ] && [ -n "${GHCR_DEPLOY_TOKEN}" ]; then
+            if [ -n "${GHCR_DEPLOY_USERNAME:-}" ] && [ -n "${GHCR_DEPLOY_TOKEN:-}" ]; then
               echo "${GHCR_DEPLOY_TOKEN}" | docker login ghcr.io -u "${GHCR_DEPLOY_USERNAME}" --password-stdin
               LOGIN_DONE=1
             fi
@@ -131,14 +131,14 @@ jobs:
           key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            sleep 15
+            sleep 10
             for i in {1..5}; do
               if curl -f http://localhost:8000/healthz 2>/dev/null; then
                 echo "✅ 헬스체크 성공!"
                 exit 0
               fi
               echo "헬스체크 재시도 $i/5..."
-              sleep 3
+              sleep 2
             done
             echo "❌ 헬스체크 실패"
             docker logs livbee-backend-dev --tail 50
