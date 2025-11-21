@@ -48,5 +48,8 @@ def init_db():
     데이터베이스 초기화
     테이블 생성 등
     """
+    # 모든 모델 import (테이블 생성용)
+    # 모델들이 Base를 상속받아 자동으로 메타데이터에 등록됨
+    import app.models  # noqa: F401
     Base.metadata.create_all(bind=engine)
 

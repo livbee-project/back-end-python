@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # requirements.txt 복사 및 의존성 설치 (레이어 캐싱 최적화)
 # 의존성 변경 시에만 재빌드되도록 분리
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 코드 복사 (가장 자주 변경되는 부분을 마지막에)
