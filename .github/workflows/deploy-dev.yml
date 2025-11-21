@@ -10,39 +10,50 @@ jobs:
   deploy:
     name: Deploy to Dev Server
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Configure image metadata
+        id: meta
+        run: |
+          OWNER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          echo "owner=$OWNER" >> $GITHUB_OUTPUT
+          echo "base_image=ghcr.io/$OWNER/livbee-backend-base:latest" >> $GITHUB_OUTPUT
+          echo "app_image=ghcr.io/$OWNER/livbee-backend-dev" >> $GITHUB_OUTPUT
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build & push base image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: false
-          tags: livbee-backend-dev:${{ github.sha }},livbee-backend-dev:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          load: true
+          file: Dockerfile.base
+          push: true
+          tags: ${{ steps.meta.outputs.base_image }}
+          cache-from: type=gha,scope=base
+          cache-to: type=gha,scope=base,mode=max
 
-      - name: Save Docker image
-        run: |
-          docker save livbee-backend-dev | gzip -1 > livbee-backend-dev.tar.gz
-
-      - name: Copy Docker image to server
-        uses: appleboy/scp-action@v0.1.7
+      - name: Build & push app image
+        uses: docker/build-push-action@v5
         with:
-          host: ${{ secrets.DEV_SERVER_HOST }}
-          username: ${{ secrets.DEV_SERVER_USER }}
-          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
-          port: 22
-          source: "livbee-backend-dev.tar.gz"
-          target: "/home/${{ secrets.DEV_SERVER_USER }}/livbee-backend"
-          strip_components: 0
-          rm: false
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.app_image }}:${{ github.sha }}
+            ${{ steps.meta.outputs.app_image }}:latest
+          cache-from: type=gha,scope=dev
+          cache-to: type=gha,scope=dev,mode=max
+          build-args: |
+            GHCR_BASE_IMAGE=${{ steps.meta.outputs.base_image }}
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
@@ -52,15 +63,12 @@ jobs:
           key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
           port: 22
           script: |
+            IMAGE="${{ steps.meta.outputs.app_image }}:${{ github.sha }}"
             cd /home/${{ secrets.DEV_SERVER_USER }}/livbee-backend
-            
-            # Docker 이미지 로드
-            if [ -f livbee-backend-dev.tar.gz ]; then
-              docker load < livbee-backend-dev.tar.gz
-              rm -f livbee-backend-dev.tar.gz
-            fi
-            
-            # .env 파일 동적 생성
+
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            docker pull "$IMAGE"
+
             cat > .env <<EOF
             DB_HOST=${{ secrets.DEV_DB_HOST }}
             DB_PORT=${{ secrets.DEV_DB_PORT }}
@@ -70,19 +78,18 @@ jobs:
             JWT_SECRET=${{ secrets.DEV_JWT_SECRET }}
             NODE_ENV=production
             EOF
-            
-            # 기존 컨테이너 중지 및 제거
+
             docker stop livbee-backend-dev 2>/dev/null || true
             docker rm livbee-backend-dev 2>/dev/null || true
-            
-            # 새 컨테이너 실행
+
             docker run -d \
               --name livbee-backend-dev \
               --restart always \
               -p 8000:8000 \
               --env-file .env \
-              livbee-backend-dev
-            
+              "$IMAGE"
+
+            docker logout ghcr.io
             echo "✅ 배포 완료!"
 
       - name: Health check

@@ -11,34 +11,50 @@ jobs:
     name: Deploy to Prod Server
     runs-on: ubuntu-latest
     environment: production  # GitHub에서 수동 승인 설정 가능
-    
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Configure image metadata
+        id: meta
+        run: |
+          OWNER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          echo "owner=$OWNER" >> $GITHUB_OUTPUT
+          echo "base_image=ghcr.io/$OWNER/livbee-backend-base:latest" >> $GITHUB_OUTPUT
+          echo "app_image=ghcr.io/$OWNER/livbee-backend-prod" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
-        run: |
-          docker build -t livbee-backend-prod .
-          docker tag livbee-backend-prod livbee-backend-prod:${{ github.sha }}
-
-      - name: Save Docker image
-        run: |
-          docker save livbee-backend-prod | gzip -1 > livbee-backend-prod.tar.gz
-
-      - name: Copy files to server
-        uses: appleboy/scp-action@v0.1.7
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          host: ${{ secrets.PROD_SERVER_HOST }}
-          username: ${{ secrets.PROD_SERVER_USER }}
-          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
-          port: 22
-          source: "."
-          target: "/home/${{ secrets.PROD_SERVER_USER }}/livbee-backend"
-          strip_components: 0
-          rm: false
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build & push base image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.base
+          push: true
+          tags: ${{ steps.meta.outputs.base_image }}
+          cache-from: type=gha,scope=base
+          cache-to: type=gha,scope=base,mode=max
+
+      - name: Build & push app image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.app_image }}:${{ github.sha }}
+            ${{ steps.meta.outputs.app_image }}:latest
+          cache-from: type=gha,scope=prod
+          cache-to: type=gha,scope=prod,mode=max
+          build-args: |
+            GHCR_BASE_IMAGE=${{ steps.meta.outputs.base_image }}
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
@@ -48,15 +64,12 @@ jobs:
           key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           port: 22
           script: |
+            IMAGE="${{ steps.meta.outputs.app_image }}:${{ github.sha }}"
             cd /home/${{ secrets.PROD_SERVER_USER }}/livbee-backend
-            
-            # Docker 이미지 로드
-            if [ -f livbee-backend-prod.tar.gz ]; then
-              docker load < livbee-backend-prod.tar.gz
-              rm -f livbee-backend-prod.tar.gz
-            fi
-            
-            # .env 파일 동적 생성
+
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            docker pull "$IMAGE"
+
             cat > .env <<EOF
             DB_HOST=${{ secrets.PROD_DB_HOST }}
             DB_PORT=${{ secrets.PROD_DB_PORT }}
@@ -66,19 +79,18 @@ jobs:
             JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
             NODE_ENV=production
             EOF
-            
-            # 기존 컨테이너 중지 및 제거
+
             docker stop livbee-backend-prod 2>/dev/null || true
             docker rm livbee-backend-prod 2>/dev/null || true
-            
-            # 새 컨테이너 실행
+
             docker run -d \
               --name livbee-backend-prod \
               --restart always \
               -p 8000:8000 \
               --env-file .env \
-              livbee-backend-prod
-            
+              "$IMAGE"
+
+            docker logout ghcr.io
             echo "✅ 배포 완료!"
 
       - name: Health check
@@ -89,7 +101,16 @@ jobs:
           key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            sleep 10
-            curl -f http://localhost:8000/db-test || exit 1
-            echo "✅ 헬스체크 성공!"
+            sleep 15
+            for i in {1..5}; do
+              if curl -f http://localhost:8000/healthz 2>/dev/null; then
+                echo "✅ 헬스체크 성공!"
+                exit 0
+              fi
+              echo "헬스체크 재시도 $i/5..."
+              sleep 3
+            done
+            echo "❌ 헬스체크 실패"
+            docker logs livbee-backend-prod --tail 50
+            exit 1
 

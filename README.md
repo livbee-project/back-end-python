@@ -86,7 +86,8 @@ back-end-python/
 ├── nginx/
 │   ├── nginx-dev.conf       # Dev Nginx 설정
 │   └── nginx-prod.conf      # Prod Nginx 설정
-├── Dockerfile               # Docker 이미지 빌드 설정
+├── Dockerfile               # 런타임 이미지 (베이스 이미지 의존)
+├── Dockerfile.base          # Python/시스템 패키지 사전 설치용 베이스 이미지
 ├── requirements.txt         # Python 패키지 의존성
 └── README.md               # 프로젝트 문서
 ```
@@ -111,6 +112,8 @@ back-end-python/
 | `DB_NAME` | 데이터베이스 이름 | - |
 | `DB_USER` | 데이터베이스 사용자명 | - |
 | `DB_PASSWORD` | 데이터베이스 비밀번호 | - |
+| `GHCR_USERNAME` | GHCR 로그인용 GitHub 사용자명 (서버 측 docker login) | Secrets |
+| `GHCR_TOKEN` | GHCR PAT (read/write:packages) | Secrets |
 
 **보안 주의:** 
 - `.env` 파일은 절대 Git에 커밋하지 마세요
@@ -132,9 +135,9 @@ back-end-python/
 
 1. 코드를 브랜치에 push
 2. GitHub Actions 워크플로우 자동 실행
-3. Docker 이미지 빌드
-4. 서버에 파일 전송 (SCP)
-5. GitHub Secrets로 `.env` 파일 동적 생성
+3. Docker 베이스 이미지(`Dockerfile.base`) 빌드 후 GHCR에 push
+4. 애플리케이션 이미지(`Dockerfile`) 빌드 후 GHCR에 push
+5. 대상 서버에서 GHCR Pull + `.env` 동적 생성
 6. 기존 컨테이너 중지/삭제 후 새 컨테이너 실행
 7. 헬스체크 수행
 
@@ -142,7 +145,8 @@ back-end-python/
 
 1. **GitHub Secrets 설정**
    - 레포지토리 Settings → Secrets and variables → Actions
-   - 서버 호스트, SSH 키, 데이터베이스 정보 등 설정
+   - 서버 호스트, SSH 키, 데이터베이스 정보
+   - GHCR 접근용 `GHCR_USERNAME`, `GHCR_TOKEN` (Packages:read/write 권한이 있는 Personal Access Token)
 
 2. **서버 초기 설정**
    - Docker 및 Docker Compose 설치
