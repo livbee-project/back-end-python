@@ -84,8 +84,8 @@ jobs:
         env:
           GHCR_DEPLOY_USERNAME: ${{ steps.ghcr-creds.outputs.deploy_username }}
           GHCR_DEPLOY_TOKEN: ${{ steps.ghcr-creds.outputs.deploy_token }}
-          FALLBACK_USER: ${{ github.actor }}
-          FALLBACK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.PROD_SERVER_HOST }}
           username: ${{ secrets.PROD_SERVER_USER }}
@@ -96,9 +96,9 @@ jobs:
             IMAGE="${{ steps.meta.outputs.app_image }}:${{ github.sha }}"
             cd /home/${{ secrets.PROD_SERVER_USER }}/livbee-backend
 
-            # Fallback 처리
-            DEPLOY_USER="${GHCR_DEPLOY_USERNAME:-${FALLBACK_USER:-}}"
-            DEPLOY_TOKEN="${GHCR_DEPLOY_TOKEN:-${FALLBACK_TOKEN:-}}"
+            # Fallback 처리: outputs가 비어있으면 GITHUB_ACTOR와 GITHUB_TOKEN 사용
+            DEPLOY_USER="${GHCR_DEPLOY_USERNAME:-${GITHUB_ACTOR:-}}"
+            DEPLOY_TOKEN="${GHCR_DEPLOY_TOKEN:-${GITHUB_TOKEN:-}}"
 
             echo "🔍 디버깅: DEPLOY_USER=${DEPLOY_USER:-'(비어있음)'}"
             echo "🔍 디버깅: DEPLOY_TOKEN=${DEPLOY_TOKEN:+'(설정됨)'}${DEPLOY_TOKEN:-'(비어있음)'}"
