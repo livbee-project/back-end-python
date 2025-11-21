@@ -58,14 +58,26 @@ FastAPI 기반 백엔드 API 서버입니다.
    
    **⚠️ 보안 주의:** `.env` 파일은 절대 Git에 커밋하지 마세요. `.gitignore`에 포함되어 있습니다.
 
-5. **서버 실행**
+5. **데이터베이스 마이그레이션** (선택사항)
+   ```bash
+   # 초기 마이그레이션 생성 (첫 실행 시)
+   alembic revision --autogenerate -m "Initial migration"
+   
+   # 마이그레이션 적용
+   alembic upgrade head
+   ```
+   
+   > **참고**: 로컬 개발 환경에서는 `init_db()` 함수가 자동으로 테이블을 생성하지만, 프로덕션 환경에서는 Alembic 마이그레이션을 사용하는 것을 권장합니다.
+
+6. **서버 실행**
    ```bash
    uvicorn app.main:app --reload
    ```
 
-6. **API 테스트**
+7. **API 테스트**
    - 기본 엔드포인트: http://localhost:8000/
    - DB 연결 테스트: http://localhost:8000/db-test
+   - API 문서: http://localhost:8000/api-docs
 
 ---
 
@@ -75,7 +87,16 @@ FastAPI 기반 백엔드 API 서버입니다.
 back-end-python/
 ├── app/
 │   ├── __init__.py
-│   └── main.py              # FastAPI 메인 애플리케이션
+│   ├── main.py              # FastAPI 메인 애플리케이션
+│   ├── core/                # 핵심 설정 (config, database, security)
+│   ├── models/              # SQLAlchemy 모델
+│   ├── routes/              # API 라우터
+│   ├── middleware/          # 인증/권한 미들웨어
+│   └── utils/               # 유틸리티 함수
+├── alembic/                 # Alembic 마이그레이션
+│   ├── versions/            # 마이그레이션 파일
+│   ├── env.py               # Alembic 환경 설정
+│   └── script.py.mako       # 마이그레이션 템플릿
 ├── .github/
 │   └── workflows/
 │       ├── deploy-dev.yml   # Dev 환경 배포 워크플로우
@@ -86,6 +107,7 @@ back-end-python/
 ├── nginx/
 │   ├── nginx-dev.conf       # Dev Nginx 설정
 │   └── nginx-prod.conf      # Prod Nginx 설정
+├── alembic.ini              # Alembic 설정 파일
 ├── Dockerfile               # 런타임 이미지 (베이스 이미지 의존)
 ├── Dockerfile.base          # Python/시스템 패키지 사전 설치용 베이스 이미지
 ├── requirements.txt         # Python 패키지 의존성
@@ -96,10 +118,50 @@ back-end-python/
 
 ## 🔧 개발
 
+### 데이터베이스 마이그레이션
+
+이 프로젝트는 [Alembic](https://alembic.sqlalchemy.org/)을 사용하여 데이터베이스 스키마 버전 관리를 수행합니다.
+
+#### 초기 마이그레이션 생성
+
+```bash
+# 가상환경 활성화 후
+alembic revision --autogenerate -m "Initial migration"
+```
+
+#### 마이그레이션 적용
+
+```bash
+# 최신 마이그레이션 적용
+alembic upgrade head
+
+# 특정 리비전으로 업그레이드
+alembic upgrade <revision>
+
+# 한 단계 롤백
+alembic downgrade -1
+
+# 특정 리비전으로 롤백
+alembic downgrade <revision>
+```
+
+#### 마이그레이션 상태 확인
+
+```bash
+# 현재 마이그레이션 상태 확인
+alembic current
+
+# 마이그레이션 히스토리 확인
+alembic history
+```
+
+**참고**: 프로덕션 환경에서는 `init_db()` 대신 Alembic 마이그레이션을 사용하여 데이터베이스 스키마를 관리합니다.
+
 ### API 엔드포인트
 
 - `GET /`: 기본 Hello 메시지 반환
 - `GET /db-test`: 데이터베이스 연결 테스트 및 버전 정보 반환
+- `GET /api-docs`: Swagger UI (개발 환경에서만 활성화)
 
 ### 환경변수
 
