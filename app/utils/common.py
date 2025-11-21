@@ -81,21 +81,26 @@ def sanitize_html(html_content: Optional[str]) -> str:
     return str(soup)
 
 
-def format_date(date: Optional[datetime]) -> str:
+def format_date(date_obj) -> str:
     """
     날짜를 'YYYY. MM. DD' 형식으로 변환
     
     Args:
-        date: datetime 객체
+        date_obj: datetime 또는 date 객체
     
     Returns:
         포맷된 날짜 문자열
     """
-    if not date:
+    if not date_obj:
         return ""
     
     try:
-        return date.strftime("%Y. %m. %d")
+        if isinstance(date_obj, datetime):
+            return date_obj.strftime("%Y. %m. %d")
+        elif hasattr(date_obj, 'strftime'):
+            return date_obj.strftime("%Y. %m. %d")
+        else:
+            return str(date_obj)
     except Exception:
         return ""
 
