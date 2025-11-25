@@ -224,9 +224,55 @@ alembic history
 #### 지원서 관리 (`/api/v1/applications`)
 
 - `GET /api/v1/applications/mine`: 내 지원서 목록 조회 (인증 필요)
-- `POST /api/v1/applications`: 새 지원서 생성 (인증 필요)
+- `POST /api/v1/applications`: 새 지원서 생성 (인증 필요, 응답에 `chatRoomId` 포함)
 - `GET /api/v1/applications`: 전체 지원서 목록 조회 (brand, 인증 필요, 페이지네이션)
 - `PATCH /api/v1/applications/{application_id}`: 지원서 상태 업데이트 (brand, 인증 필요)
+
+> **캠페인 지원 연계**: 지원이 완료되면 자동으로 `chatRoomId`가 생성/재사용되어 응답으로 전달됩니다. 프론트에서 해당 ID로 바로 채팅 화면을 열 수 있습니다.
+
+#### 채팅 (`/api/v1/chat`)
+
+- `GET /api/v1/chat/rooms`: 내가 참여한 채팅방 목록 (최근 메시지 + 미확인 메시지 수 포함)
+- `GET /api/v1/chat/rooms/{room_id}`: 채팅방 메시지 히스토리 (페이지네이션)
+- `POST /api/v1/chat/rooms`: 캠페인/참가자 조합으로 채팅방 생성 또는 재사용
+- `POST /api/v1/chat/rooms/{room_id}/messages`: 메시지 전송
+- `POST /api/v1/chat/rooms/{room_id}/read`: 읽음 처리 (`last_read_message_id` 갱신)
+- `WebSocket /api/v1/chat/{room_id}`: JWT 인증 후 참여자만 실시간 메시지/읽음 이벤트 수신
+
+모든 응답은 기존 API와 동일하게 `success_response`/`fail_response` 포맷을 사용하며, JWT 토큰의 역할(role)이 `brand` 또는 `showhost`인 사용자만 접근할 수 있습니다.
+
+##### WebSocket 연결 가이드
+
+- **엔드포인트**: `wss://{호스트}/api/v1/chat/{room_id}`
+- **인증 방법**: 쿼리스트링 `?token=<JWT>` 또는 헤더 `Authorization: Bearer <JWT>`
+- **메시지 예시**
+  ```json
+  {
+    "type": "message.new",
+    "payload": {
+      "id": "msg-id",
+      "roomId": "room-id",
+      "content": "안녕하세요!",
+      "messageType": "text",
+      "sender": { "id": "user-id", "role": "showhost", "name": "홍길동" },
+      "createdAt": "2025-11-25T12:34:56.000Z"
+    }
+  }
+  ```
+- **읽음 이벤트**
+  ```json
+  {
+    "type": "message.read",
+    "payload": {
+      "roomId": "room-id",
+      "userId": "brand-user-id",
+      "lastReadMessageId": "msg-id",
+      "lastReadAt": "2025-11-25T12:40:00.000Z"
+    }
+  }
+  ```
+
+> WebSocket에서 `{"type": "ping"}`을 전송하면 서버가 `{"type": "pong"}`으로 응답하여 연결 상태를 확인할 수 있습니다.
 
 #### 제안 관리 (`/api/v1/proposals`)
 

@@ -6,6 +6,15 @@ from app.models.application import Application
 from app.models.proposal import Proposal
 from app.models.news import News
 from app.models.studio import Studio
+from app.models.chat import (
+    ChatRoom,
+    ChatMessage,
+    ChatParticipant,
+    ChatRoomStatus,
+    ChatMessageStatus,
+    ChatMessageType,
+    ChatParticipantRole,
+)
 
 __all__ = [
     "User",
@@ -17,5 +26,12 @@ __all__ = [
     "Proposal",
     "News",
     "Studio",
+    "ChatRoom",
+    "ChatMessage",
+    "ChatParticipant",
+    "ChatRoomStatus",
+    "ChatMessageStatus",
+    "ChatMessageType",
+    "ChatParticipantRole",
 ]
 

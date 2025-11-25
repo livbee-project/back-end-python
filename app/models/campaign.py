@@ -99,6 +99,7 @@ class Campaign(Base):
     # 관계
     created_by_user = relationship("User", back_populates="campaigns", foreign_keys=[created_by])
     applications = relationship("Application", back_populates="campaign", cascade="all, delete-orphan")
+    chat_rooms = relationship("ChatRoom", back_populates="campaign", cascade="all, delete-orphan")
     products = relationship("ProductItem", back_populates="campaign", cascade="all, delete-orphan")
     questions = relationship("Question", back_populates="campaign", cascade="all, delete-orphan")
 

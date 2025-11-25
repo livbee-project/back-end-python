@@ -38,6 +38,7 @@ class Application(Base):
     # 관계
     campaign = relationship("Campaign", back_populates="applications")
     user = relationship("User", back_populates="applications")
+    chat_room = relationship("ChatRoom", back_populates="application", uselist=False)
 
     # 제약 조건: 중복 지원 방지
     __table_args__ = (

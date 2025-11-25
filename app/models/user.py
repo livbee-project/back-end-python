@@ -51,4 +51,7 @@ class User(Base):
     proposals_sent = relationship("Proposal", back_populates="proposer", foreign_keys="Proposal.proposer_id")
     proposals_received = relationship("Proposal", back_populates="target_showhost", foreign_keys="Proposal.target_showhost_id")
     news = relationship("News", back_populates="created_by_user", cascade="all, delete-orphan")
+    brand_chat_rooms = relationship("ChatRoom", back_populates="brand_user", foreign_keys="ChatRoom.brand_user_id")
+    showhost_chat_rooms = relationship("ChatRoom", back_populates="showhost_user", foreign_keys="ChatRoom.showhost_user_id")
+    chat_participations = relationship("ChatParticipant", back_populates="user", cascade="all, delete-orphan")
 

@@ -108,6 +108,28 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Portfolio already exists for this user",
         "userMessage": "이미 포트폴리오가 존재합니다.",
     },
+
+    # --- 채팅 (Chat) ---
+    "CHAT_ROOM_NOT_FOUND": {
+        "message": "Chat room not found",
+        "userMessage": "채팅방을 찾을 수 없습니다.",
+    },
+    "CHAT_ROOM_FORBIDDEN": {
+        "message": "You are not a participant of this chat room",
+        "userMessage": "해당 채팅방에 접근할 권한이 없습니다.",
+    },
+    "CHAT_MESSAGE_EMPTY": {
+        "message": "Message content is required",
+        "userMessage": "메시지 내용을 입력해주세요.",
+    },
+    "CHAT_MESSAGE_NOT_FOUND": {
+        "message": "Message not found",
+        "userMessage": "해당 메시지를 찾을 수 없습니다.",
+    },
+    "CHAT_INVALID_PARTICIPANT": {
+        "message": "Invalid participant information",
+        "userMessage": "채팅 참가자 정보가 올바르지 않습니다.",
+    },
 }
 
 

@@ -15,6 +15,7 @@ from app.models.application import Application, ApplicationStatus
 from app.models.campaign import Campaign
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
+from app.services.chat_service import ensure_chat_room
 import uuid
 
 router = APIRouter(prefix="/applications", tags=["applications"])
@@ -93,11 +94,25 @@ async def create_application(
     )
 
     db.add(application)
+    db.flush()
+
+    chat_room = ensure_chat_room(
+        db,
+        campaign_id=campaign.id,
+        brand_user_id=campaign.created_by,
+        showhost_user_id=user_id,
+        application_id=application.id,
+    )
+
     db.commit()
     db.refresh(application)
+    db.refresh(chat_room)
 
     data = {"id": application.id, **{k: v for k, v in application.__dict__.items() if not k.startswith("_")}}
-    return success_response({"data": data}, status_code=status.HTTP_201_CREATED)
+    return success_response(
+        {"data": data, "chatRoomId": chat_room.id},
+        status_code=status.HTTP_201_CREATED,
+    )
 
 
 @router.get("")
