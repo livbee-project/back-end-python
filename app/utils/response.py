@@ -4,6 +4,7 @@
 """
 from typing import Any, Optional
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi import status
 from app.utils.error_messages import get_error_message
 
@@ -32,7 +33,10 @@ def success_response(
     if message:
         response_data["message"] = message
     
-    response = JSONResponse(status_code=status_code, content=response_data)
+    response = JSONResponse(
+        status_code=status_code,
+        content=jsonable_encoder(response_data)
+    )
     # CORS 헤더 명시적 추가 (에러 응답에도 포함되도록)
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Credentials"] = "true"
@@ -69,7 +73,10 @@ def fail_response(
     if additional_data:
         response_data.update(additional_data)
     
-    response = JSONResponse(status_code=status_code, content=response_data)
+    response = JSONResponse(
+        status_code=status_code,
+        content=jsonable_encoder(response_data)
+    )
     # CORS 헤더 명시적 추가 (에러 응답에도 포함되도록)
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Credentials"] = "true"
