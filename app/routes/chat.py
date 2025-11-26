@@ -421,7 +421,7 @@ async def send_chat_message(
         {"type": "message.new", "payload": payload},
         exclude_user_id=None,
     )
-    return success_response({"data": payload}, status_code=status.HTTP_201_CREATED)
+    return success_response({"data": {"message": payload}}, status_code=status.HTTP_201_CREATED)
 
 
 @router.post("/rooms/{room_id}/read")
