@@ -400,6 +400,7 @@ async def send_chat_message(
         extra_metadata=request.metadata,
     )
     db.add(message)
+    db.flush()  # 메시지를 먼저 DB에 flush하여 ID 확정
 
     participant.last_read_message_id = message.id
     participant.last_read_at = now
