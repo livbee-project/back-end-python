@@ -390,6 +390,7 @@ async def send_chat_message(
     if not room:
         return fail_response("CHAT_ROOM_NOT_FOUND", status.HTTP_404_NOT_FOUND)
 
+    now = datetime.now(timezone.utc)
     message = ChatMessage(
         id=str(uuid.uuid4()),
         room_id=room_id,
@@ -401,9 +402,9 @@ async def send_chat_message(
     db.add(message)
 
     participant.last_read_message_id = message.id
-    participant.last_read_at = message.created_at
+    participant.last_read_at = now
     room.last_message_id = message.id
-    room.last_message_at = message.created_at
+    room.last_message_at = now
 
     db.commit()
 
