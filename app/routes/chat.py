@@ -26,7 +26,8 @@ from app.core.security import decode_token
 from app.middleware.role import require_role
 from app.models.user import User, UserRole
 from app.models.campaign import Campaign
-from app.models.application import Application
+from app.models.application import Application, ApplicationStatus
+from app.models.portfolio import Portfolio
 from app.models.chat import ChatRoom, ChatParticipant, ChatMessage, ChatMessageType
 from app.services.chat_service import ensure_chat_room
 from app.utils.response import success_response, fail_response
@@ -155,6 +156,43 @@ def _message_payload(message: ChatMessage) -> Dict[str, Any]:
     }
 
 
+def _application_payload(
+    application: Optional[Application],
+    db: Session,
+) -> Optional[Dict[str, Any]]:
+    """지원서 정보를 응답 형식으로 변환"""
+    if not application:
+        return None
+    
+    # 포트폴리오 정보 조회 (profile_ref가 포트폴리오 ID인 경우)
+    portfolio_title = None
+    if application.profile_ref:
+        portfolio = db.query(Portfolio).filter(Portfolio.id == application.profile_ref).first()
+        if portfolio:
+            portfolio_title = portfolio.nickname or portfolio.one_line_intro
+    
+    # 상태 매핑 (ApplicationStatus -> 프론트엔드 기대 형식)
+    status_map = {
+        ApplicationStatus.SUBMITTED: "pending",
+        ApplicationStatus.REVIEWING: "pending",
+        ApplicationStatus.SHORTLISTED: "pending",
+        ApplicationStatus.ACCEPTED: "accepted",
+        ApplicationStatus.REJECTED: "rejected",
+    }
+    status_value = application.status.value if hasattr(application.status, "value") else application.status
+    mapped_status = status_map.get(application.status, "pending")
+    
+    return {
+        "applicationId": application.id,
+        "campaignTitle": application.campaign.title if application.campaign else None,
+        "portfolioTitle": portfolio_title,
+        "availableDate": None,  # DB에 저장되지 않음
+        "availableTime": None,  # DB에 저장되지 않음
+        "message": application.message,
+        "status": mapped_status,
+    }
+
+
 def _room_payload(
     room: ChatRoom,
     *,
@@ -198,6 +236,7 @@ def _load_room(db: Session, room_id: str) -> Optional[ChatRoom]:
             joinedload(ChatRoom.showhost_user),
             joinedload(ChatRoom.last_message).joinedload(ChatMessage.sender),
             joinedload(ChatRoom.participants).joinedload(ChatParticipant.user),
+            joinedload(ChatRoom.application),
         )
         .filter(ChatRoom.id == room_id)
         .first()
@@ -292,13 +331,21 @@ async def get_chat_room_history(
     items = [_message_payload(message) for message in messages]
     unread = _calculate_unread_count(db, room_id, participant)
 
-    return success_response(
-        {
-            "room": _room_payload(room, current_user_id=user_id, unread_count=unread),
-            "items": items,
-            "pagination": {"page": page, "limit": limit, "total": total},
-        }
-    )
+    # 지원서 정보 조회
+    application_payload = None
+    if room.application:
+        application_payload = _application_payload(room.application, db)
+
+    response_data = {
+        "room": _room_payload(room, current_user_id=user_id, unread_count=unread),
+        "items": items,
+        "pagination": {"page": page, "limit": limit, "total": total},
+    }
+    
+    if application_payload:
+        response_data["application"] = application_payload
+
+    return success_response(response_data)
 
 
 @router.post("/rooms", status_code=status.HTTP_201_CREATED)
