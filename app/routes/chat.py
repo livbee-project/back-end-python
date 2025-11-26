@@ -190,6 +190,7 @@ def _application_payload(
         "availableTime": None,  # DB에 저장되지 않음
         "message": application.message,
         "status": mapped_status,
+        "createdAt": application.created_at.isoformat() if application.created_at else None,
     }
 
 
@@ -211,6 +212,7 @@ def _room_payload(
         "brandUser": _user_summary(room.brand_user),
         "showhostUser": _user_summary(room.showhost_user),
         "lastMessage": _message_payload(room.last_message) if room.last_message else None,
+        "createdAt": room.created_at.isoformat() if room.created_at else None,
         "updatedAt": room.last_message_at.isoformat() if room.last_message_at else None,
         "status": room.status.value if hasattr(room.status, "value") else room.status,
         "unreadCount": unread_count,
