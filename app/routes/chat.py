@@ -405,7 +405,6 @@ async def create_or_get_chat_room(
         showhost_user_id=showhost_user_id,
         application_id=request.application_id,
     )
-    db.commit()
 
     loaded_room = _load_room(db, room.id)
     participant = _get_participant(db, room.id, user_id)
@@ -456,8 +455,6 @@ async def send_chat_message(
     room.last_message_id = message.id
     room.last_message_at = now
 
-    db.commit()
-
     created_message = (
         db.query(ChatMessage)
         .options(joinedload(ChatMessage.sender))
@@ -503,8 +500,6 @@ async def mark_chat_room_as_read(
         participant.last_read_message_id = None
         participant.last_read_at = datetime.now(timezone.utc)
 
-    db.commit()
-
     payload = {
         "roomId": room_id,
         "userId": user_id,
@@ -545,7 +540,6 @@ async def delete_chat_room(
     
     # 하드 삭제: DB 레코드 완전 삭제 (CASCADE로 메시지, 참가자도 자동 삭제됨)
     db.delete(room)
-    db.commit()
     
     # WebSocket 이벤트 브로드캐스트 (삭제 전에 전송)
     await connection_manager.broadcast(

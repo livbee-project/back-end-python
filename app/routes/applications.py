@@ -17,6 +17,7 @@ from app.models.user import User, UserRole
 from app.models.chat import ChatRoom, ChatMessage, ChatMessageType
 from app.models.portfolio import Portfolio
 from app.utils.response import success_response, fail_response
+from app.utils.common import model_to_dict, models_to_list
 from app.services.chat_service import ensure_chat_room
 import uuid
 
@@ -57,7 +58,7 @@ async def get_my_application(
     if not application:
         return success_response({"data": None})
 
-    data = {"id": application.id, **{k: v for k, v in application.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(application)
     return success_response({"data": data})
 
 
@@ -111,11 +112,10 @@ async def create_application(
         application_id=application.id,
     )
 
-    db.commit()
     db.refresh(application)
     db.refresh(chat_room)
 
-    data = {"id": application.id, **{k: v for k, v in application.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(application)
     return success_response(
         {"data": data, "chatRoomId": chat_room.id},
         status_code=status.HTTP_201_CREATED,
@@ -146,7 +146,7 @@ async def get_applications(
         Application.campaign_id == campaign_id
     ).order_by(desc(Application.created_at)).all()
 
-    items = [{"id": app.id, **{k: v for k, v in app.__dict__.items() if not k.startswith("_")}} for app in applications]
+    items = models_to_list(applications)
     return success_response({"items": items})
 
 
@@ -177,7 +177,6 @@ async def update_application_status(
 
     old_status = application.status
     application.status = request.status
-    db.commit()
     db.refresh(application)
 
     # 채팅방 조회
@@ -269,7 +268,6 @@ async def _update_application_status_internal(
 
     old_status = application.status
     application.status = new_status
-    db.commit()
     db.refresh(application)
 
     # 채팅방 조회
@@ -410,7 +408,6 @@ async def _create_payment_request_message(
         chat_room.last_message_id = message.id
         chat_room.last_message_at = now
 
-    db.commit()
     db.refresh(message)
 
     # 메시지 전송 이벤트

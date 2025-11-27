@@ -110,7 +110,6 @@ async def signup(
     # 사용자 생성
     user = User(**user_data)
     db.add(user)
-    db.commit()
     db.refresh(user)
 
     return success_response(

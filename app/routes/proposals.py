@@ -72,7 +72,6 @@ async def create_proposal(
     )
 
     db.add(proposal)
-    db.commit()
     db.refresh(proposal)
 
     return success_response(
@@ -206,7 +205,6 @@ async def withdraw_proposal(
         })
 
     proposal.status = ProposalStatus.WITHDRAWN
-    db.commit()
 
     return success_response({"message": "제안이 성공적으로 철회되었습니다."})
 

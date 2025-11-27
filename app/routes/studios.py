@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.studio import Studio
 from app.utils.response import success_response, fail_response
+from app.utils.common import model_to_dict
 import uuid
 
 router = APIRouter(prefix="/studios", tags=["studios"])
@@ -63,10 +64,9 @@ async def create_studio(
 
     studio = Studio(**studio_data)
     db.add(studio)
-    db.commit()
     db.refresh(studio)
 
-    data = {"id": studio.id, **{k: v for k, v in studio.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(studio)
     return success_response({"data": data}, status_code=status.HTTP_201_CREATED)
 
 
@@ -87,10 +87,9 @@ async def update_studio(
     for key, value in update_data.items():
         setattr(studio, key, value)
 
-    db.commit()
     db.refresh(studio)
 
-    data = {"id": studio.id, **{k: v for k, v in studio.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(studio)
     return success_response({"data": data})
 
 
@@ -106,6 +105,6 @@ async def get_studio(
     if not studio:
         return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
 
-    data = {"id": studio.id, **{k: v for k, v in studio.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(studio)
     return success_response({"data": data})
 

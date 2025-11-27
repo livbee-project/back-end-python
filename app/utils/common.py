@@ -3,9 +3,10 @@
 """
 import re
 import unicodedata
-from typing import List, Optional
-from datetime import datetime
+from typing import List, Optional, Dict, Any, Union
+from datetime import datetime, date
 from bs4 import BeautifulSoup
+from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
 
 
@@ -193,4 +194,88 @@ def code_to_category(code: Optional[str]) -> Optional[str]:
 
     reverse_map = {v: k for k, v in CATEGORY_MAP.items()}
     return reverse_map.get(code)
+
+
+def model_to_dict(
+    model: Union[DeclarativeBase, Any],
+    exclude: Optional[List[str]] = None,
+    include: Optional[List[str]] = None,
+    exclude_private: bool = True
+) -> Dict[str, Any]:
+    """
+    SQLAlchemy 모델을 딕셔너리로 변환
+    
+    Args:
+        model: SQLAlchemy 모델 인스턴스
+        exclude: 제외할 필드 목록
+        include: 포함할 필드 목록 (지정 시 include만 포함)
+        exclude_private: True인 경우 '_'로 시작하는 필드 제외
+    
+    Returns:
+        딕셔너리 형태의 모델 데이터
+    
+    Example:
+        data = model_to_dict(user)
+        data = model_to_dict(user, exclude=['password'])
+        data = model_to_dict(user, include=['id', 'name', 'email'])
+    """
+    if model is None:
+        return {}
+    
+    exclude = exclude or []
+    result = {}
+    
+    # 모델의 모든 속성 순회
+    for key, value in model.__dict__.items():
+        # private 필드 제외
+        if exclude_private and key.startswith('_'):
+            continue
+        
+        # exclude 목록에 있으면 제외
+        if key in exclude:
+            continue
+        
+        # include가 지정된 경우 include에 있는 것만 포함
+        if include and key not in include:
+            continue
+        
+        # datetime, date 객체를 ISO 형식 문자열로 변환
+        if isinstance(value, (datetime, date)):
+            result[key] = value.isoformat() if value else None
+        # Enum 객체를 값으로 변환
+        elif hasattr(value, 'value'):
+            result[key] = value.value
+        # 일반 값은 그대로
+        else:
+            result[key] = value
+    
+    return result
+
+
+def models_to_list(
+    models: List[Union[DeclarativeBase, Any]],
+    exclude: Optional[List[str]] = None,
+    include: Optional[List[str]] = None,
+    exclude_private: bool = True
+) -> List[Dict[str, Any]]:
+    """
+    SQLAlchemy 모델 리스트를 딕셔너리 리스트로 변환
+    
+    Args:
+        models: SQLAlchemy 모델 인스턴스 리스트
+        exclude: 제외할 필드 목록
+        include: 포함할 필드 목록
+        exclude_private: True인 경우 '_'로 시작하는 필드 제외
+    
+    Returns:
+        딕셔너리 리스트
+    
+    Example:
+        items = models_to_list(users)
+        items = models_to_list(applications, exclude=['message'])
+    """
+    return [
+        model_to_dict(model, exclude=exclude, include=include, exclude_private=exclude_private)
+        for model in models
+    ]
 

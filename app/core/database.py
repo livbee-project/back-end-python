@@ -2,11 +2,17 @@
 PostgreSQL 데이터베이스 연결 관리
 SQLAlchemy를 사용한 연결 풀 관리
 """
+from contextlib import contextmanager
+from typing import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
+from sqlalchemy.exc import SQLAlchemyError
+import logging
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # 데이터베이스 URL 생성
 DATABASE_URL = (
@@ -31,14 +37,55 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     """
     데이터베이스 세션 의존성
     FastAPI의 Depends에서 사용
+    자동 커밋/롤백 처리
     """
     db = SessionLocal()
     try:
         yield db
+        # 예외가 없으면 자동 커밋
+        db.commit()
+    except SQLAlchemyError as e:
+        # 데이터베이스 오류 발생 시 롤백
+        db.rollback()
+        logger.error(f"Database error, rolling back: {e}", exc_info=True)
+        raise
+    except Exception as e:
+        # 기타 예외 발생 시 롤백
+        db.rollback()
+        logger.error(f"Unexpected error, rolling back: {e}", exc_info=True)
+        raise
+    finally:
+        db.close()
+
+
+@contextmanager
+def get_db_transaction() -> Generator[Session, None, None]:
+    """
+    트랜잭션 컨텍스트 매니저
+    명시적 트랜잭션 관리가 필요한 경우 사용
+    
+    Usage:
+        with get_db_transaction() as db:
+            # 작업 수행
+            db.add(model)
+            # 자동 커밋 (예외 없을 시)
+    """
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"Database error in transaction, rolling back: {e}", exc_info=True)
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Unexpected error in transaction, rolling back: {e}", exc_info=True)
+        raise
     finally:
         db.close()
 

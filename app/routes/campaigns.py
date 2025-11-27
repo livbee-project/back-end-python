@@ -22,6 +22,8 @@ from app.utils.common import (
     code_to_category,
     strip_tags,
     truncate_text,
+    model_to_dict,
+    models_to_list,
 )
 from app.utils.pagination import (
     normalize_pagination,
@@ -192,8 +194,7 @@ async def create_campaign(
 
     campaign = Campaign(**campaign_data)
     db.add(campaign)
-    db.commit()
-    db.refresh(campaign)
+    db.flush()
 
     # 상품 및 질문 추가
     if request.products:
@@ -214,9 +215,9 @@ async def create_campaign(
             )
             db.add(question)
 
-    db.commit()
+    db.refresh(campaign)
 
-    data = {"id": campaign.id, **{k: v for k, v in campaign.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(campaign)
     return success_response({"data": data}, status_code=status.HTTP_201_CREATED)
 
 
@@ -269,7 +270,7 @@ async def get_campaigns(
 
     items = []
     for campaign in campaigns:
-        item = {"id": campaign.id, **{k: v for k, v in campaign.__dict__.items() if not k.startswith("_")}}
+        item = model_to_dict(campaign)
         item["isAd"] = False
         item["isApplied"] = campaign.id in applied_campaign_ids
         item["summary"] = truncate_text(strip_tags(campaign.content), limit=220)
@@ -291,7 +292,7 @@ async def get_my_campaigns(
         Campaign.created_by == user_id
     ).order_by(desc(Campaign.created_at)).all()
 
-    items = [{"id": c.id, **{k: v for k, v in c.__dict__.items() if not k.startswith("_")}} for c in campaigns]
+    items = models_to_list(campaigns)
     return success_response({"items": items})
 
 
@@ -318,7 +319,7 @@ async def get_campaign(
         ).first()
         is_applied = application is not None
 
-    data = {"id": campaign.id, **{k: v for k, v in campaign.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(campaign)
     data["isApplied"] = is_applied
     return success_response({"data": data})
 
@@ -359,10 +360,9 @@ async def update_campaign(
     for key, value in update_data.items():
         setattr(campaign, key, value)
 
-    db.commit()
     db.refresh(campaign)
 
-    data = {"id": campaign.id, **{k: v for k, v in campaign.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(campaign)
     return success_response({"data": data})
 
 
@@ -386,7 +386,6 @@ async def delete_campaign(
         return fail_response("RECRUIT_FORBIDDEN_DELETE", status.HTTP_403_FORBIDDEN)
 
     campaign.is_public = False
-    db.commit()
 
     return success_response({"message": "삭제 완료"})
 

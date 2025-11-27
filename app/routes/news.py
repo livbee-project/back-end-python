@@ -13,7 +13,7 @@ from app.middleware.role import require_role
 from app.models.news import News
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
-from app.utils.common import strip_tags, truncate_text
+from app.utils.common import strip_tags, truncate_text, model_to_dict
 from app.utils.pagination import (
     normalize_pagination,
     apply_pagination,
@@ -59,7 +59,7 @@ async def get_news_list(
 
     items = []
     for news in news_items:
-        payload = {"id": news.id, **{k: v for k, v in news.__dict__.items() if not k.startswith("_")}}
+        payload = model_to_dict(news)
         payload["excerpt"] = truncate_text(strip_tags(news.content), limit=160)
         items.append(payload)
 
@@ -78,7 +78,7 @@ async def get_news(
     if not news_item:
         return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
 
-    data = {"id": news_item.id, **{k: v for k, v in news_item.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(news_item)
     return success_response({"data": data})
 
 
@@ -102,10 +102,9 @@ async def create_news(
     )
 
     db.add(news_item)
-    db.commit()
     db.refresh(news_item)
 
-    data = {"id": news_item.id, **{k: v for k, v in news_item.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(news_item)
     return success_response({"data": data}, status_code=status.HTTP_201_CREATED)
 
 
@@ -130,10 +129,9 @@ async def update_news(
     for key, value in update_data.items():
         setattr(news_item, key, value)
 
-    db.commit()
     db.refresh(news_item)
 
-    data = {"id": news_item.id, **{k: v for k, v in news_item.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(news_item)
     return success_response({"data": data})
 
 
@@ -151,7 +149,6 @@ async def delete_news(
         return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
 
     db.delete(news_item)
-    db.commit()
 
     return success_response({"message": "뉴스가 성공적으로 삭제되었습니다."})
 

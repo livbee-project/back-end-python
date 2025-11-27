@@ -194,7 +194,6 @@ async def create_model(
     
     portfolio = Portfolio(**portfolio_data)
     db.add(portfolio)
-    db.commit()
     db.refresh(portfolio)
     
     data = portfolio_to_model_dict(portfolio)
@@ -224,7 +223,6 @@ async def update_model(
     for key, value in update_data.items():
         setattr(portfolio, key, value)
     
-    db.commit()
     db.refresh(portfolio)
     
     data = portfolio_to_model_dict(portfolio)
@@ -250,7 +248,6 @@ async def delete_model(
         return fail_response("PORTFOLIO_FORBIDDEN_DELETE", status.HTTP_403_FORBIDDEN)
     
     db.delete(portfolio)
-    db.commit()
     
     return success_response({"message": "모델이 성공적으로 삭제되었습니다."})
 

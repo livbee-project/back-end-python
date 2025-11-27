@@ -13,6 +13,7 @@ from app.middleware.role import require_role
 from app.models.portfolio import Portfolio
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
+from app.utils.common import model_to_dict, models_to_list
 import uuid
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
@@ -101,7 +102,7 @@ async def get_my_portfolios(
         Portfolio.user_id == user_id
     ).order_by(desc(Portfolio.created_at)).all()
 
-    items = [{"id": p.id, **{k: v for k, v in p.__dict__.items() if not k.startswith("_")}} for p in portfolios]
+    items = models_to_list(portfolios)
     return success_response({"items": items})
 
 
@@ -123,10 +124,9 @@ async def create_portfolio(
 
     portfolio = Portfolio(**portfolio_data)
     db.add(portfolio)
-    db.commit()
     db.refresh(portfolio)
 
-    data = {"id": portfolio.id, **{k: v for k, v in portfolio.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(portfolio)
     return success_response(
         {"message": "포트폴리오가 성공적으로 생성되었습니다.", "data": data},
         status_code=status.HTTP_201_CREATED
@@ -158,10 +158,9 @@ async def update_portfolio(
     for key, value in update_data.items():
         setattr(portfolio, key, value)
 
-    db.commit()
     db.refresh(portfolio)
 
-    data = {"id": portfolio.id, **{k: v for k, v in portfolio.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(portfolio)
     return success_response({"message": "성공적으로 수정되었습니다.", "data": data})
 
 
@@ -185,7 +184,6 @@ async def delete_portfolio(
         return fail_response("PORTFOLIO_FORBIDDEN_DELETE", status.HTTP_403_FORBIDDEN)
 
     db.delete(portfolio)
-    db.commit()
 
     return success_response({"message": "성공적으로 삭제되었습니다."})
 
@@ -249,6 +247,6 @@ async def get_portfolio(
     if not portfolio:
         return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
 
-    data = {"id": portfolio.id, **{k: v for k, v in portfolio.__dict__.items() if not k.startswith("_")}}
+    data = model_to_dict(portfolio)
     return success_response({"data": data})
 
