@@ -74,7 +74,22 @@ FastAPI 기반 백엔드 API 서버입니다.
    uvicorn app.main:app --reload
    ```
 
-7. **API 테스트**
+7. **코드 품질 도구 설정** (선택사항)
+   ```bash
+   # pre-commit 훅 설치
+   pre-commit install
+   
+   # 코드 포맷팅
+   black app tests
+   
+   # 타입 체크
+   mypy app
+   
+   # 린팅
+   ruff check app tests
+   ```
+
+8. **API 테스트**
    - 기본 엔드포인트: http://localhost:8000/
    - DB 연결 테스트: http://localhost:8000/db-test
    - API 문서: http://localhost:8000/api-docs (Swagger UI)
@@ -105,11 +120,16 @@ back-end-python/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py              # FastAPI 메인 애플리케이션
-│   ├── core/                # 핵심 설정 (config, database, security)
+│   ├── core/                # 핵심 설정 (config, database, security, logging)
 │   ├── models/              # SQLAlchemy 모델
-│   ├── routes/              # API 라우터
+│   ├── routes/              # API 라우터 (요청/응답 처리)
+│   ├── services/            # 비즈니스 로직 서비스 레이어
 │   ├── middleware/          # 인증/권한 미들웨어
 │   └── utils/               # 유틸리티 함수
+├── tests/                   # 테스트 코드
+│   ├── conftest.py          # pytest 설정 및 픽스처
+│   ├── test_*_service.py    # 서비스 레이어 단위 테스트
+│   └── test_api_*.py        # API 엔드포인트 통합 테스트
 ├── alembic/                 # Alembic 마이그레이션
 │   ├── versions/            # 마이그레이션 파일
 │   ├── env.py               # Alembic 환경 설정
@@ -125,10 +145,40 @@ back-end-python/
 │   ├── nginx-dev.conf       # Dev Nginx 설정
 │   └── nginx-prod.conf      # Prod Nginx 설정
 ├── alembic.ini              # Alembic 설정 파일
+├── pytest.ini               # pytest 설정 파일
 ├── Dockerfile               # 런타임 이미지 (베이스 이미지 의존)
 ├── Dockerfile.base          # Python/시스템 패키지 사전 설치용 베이스 이미지
 ├── requirements.txt         # Python 패키지 의존성
 └── README.md               # 프로젝트 문서
+```
+
+### 아키텍처 개요
+
+이 프로젝트는 **서비스 레이어 아키텍처**를 따릅니다:
+
+- **Routes Layer** (`app/routes/`): HTTP 요청/응답 처리, 입력 검증
+- **Service Layer** (`app/services/`): 비즈니스 로직, 데이터베이스 조작
+- **Model Layer** (`app/models/`): SQLAlchemy ORM 모델
+- **Utils Layer** (`app/utils/`): 공통 유틸리티 함수
+
+이 구조를 통해 비즈니스 로직과 프레젠테이션 로직을 분리하여 코드 재사용성과 테스트 용이성을 높였습니다.
+
+#### 서비스 레이어 사용 예시
+
+```python
+# ❌ 나쁜 예: 라우트에서 직접 비즈니스 로직 처리
+@router.post("/applications")
+async def create_application(request: ApplicationCreate, db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).filter(Campaign.id == request.campaign_id).first()
+    if not campaign:
+        return fail_response("NOT_FOUND", 404)
+    # ... 복잡한 비즈니스 로직 ...
+
+# ✅ 좋은 예: 서비스 레이어 사용
+@router.post("/applications")
+async def create_application(request: ApplicationCreate, db: Session = Depends(get_db)):
+    application = create_application_service(db, request.campaign_id, user_id)
+    return success_response({"data": application})
 ```
 
 ---
@@ -173,6 +223,80 @@ alembic history
 ```
 
 **참고**: 프로덕션 환경에서는 `init_db()` 대신 Alembic 마이그레이션을 사용하여 데이터베이스 스키마를 관리합니다.
+
+### 테스트
+
+이 프로젝트는 `pytest`를 사용하여 테스트를 작성합니다.
+
+#### 테스트 실행
+
+```bash
+# 모든 테스트 실행
+pytest
+
+# 특정 테스트 파일 실행
+pytest tests/test_user_service.py
+
+# 커버리지 포함 실행
+pytest --cov=app --cov-report=html
+
+# 특정 테스트 함수만 실행
+pytest tests/test_user_service.py::test_create_user_success
+```
+
+#### 테스트 구조
+
+- **단위 테스트** (`test_*_service.py`): 서비스 레이어의 비즈니스 로직 테스트
+- **통합 테스트** (`test_api_*.py`): API 엔드포인트 통합 테스트
+
+테스트는 인메모리 SQLite 데이터베이스를 사용하여 실제 데이터베이스에 영향을 주지 않습니다.
+
+### 코드 품질
+
+#### 코드 포맷팅
+
+```bash
+# Black으로 코드 포맷팅
+black app tests
+
+# 포맷팅 확인만 (변경하지 않음)
+black --check app tests
+```
+
+#### 타입 체크
+
+```bash
+# mypy로 타입 체크
+mypy app
+```
+
+#### 린팅
+
+```bash
+# ruff로 린팅
+ruff check app tests
+
+# 자동 수정
+ruff check --fix app tests
+```
+
+#### Pre-commit 훅
+
+커밋 전 자동으로 코드 품질 검사를 수행하려면:
+
+```bash
+# pre-commit 훅 설치
+pre-commit install
+
+# 수동 실행
+pre-commit run --all-files
+```
+
+설치 후 커밋 시 자동으로 다음 검사가 수행됩니다:
+- 코드 포맷팅 (Black)
+- 린팅 (Ruff)
+- 타입 체크 (mypy)
+- 기타 파일 검증 (YAML, JSON, TOML 등)
 
 ### API 엔드포인트
 

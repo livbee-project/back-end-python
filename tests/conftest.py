@@ -9,7 +9,6 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.main import app
-from app.core.config import settings
 
 # 테스트용 인메모리 SQLite 데이터베이스
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
