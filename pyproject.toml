@@ -62,10 +62,19 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
     "slow: Slow running tests",
 ]
+cov_fail_under = 70
 

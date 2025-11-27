@@ -240,8 +240,14 @@ pytest tests/test_user_service.py
 # 커버리지 포함 실행
 pytest --cov=app --cov-report=html
 
+# 커버리지 리포트 확인
+# HTML 리포트: htmlcov/index.html
+# 터미널 리포트: pytest 실행 시 자동 표시
+
 # 특정 테스트 함수만 실행
 pytest tests/test_user_service.py::test_create_user_success
+
+# 커버리지 목표: 70% 이상 (pyproject.toml에 설정됨)
 ```
 
 #### 테스트 구조
