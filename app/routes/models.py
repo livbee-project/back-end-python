@@ -15,6 +15,14 @@ from app.models.portfolio import Portfolio
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
 from app.utils.pagination import normalize_pagination, apply_pagination, build_paginated_payload
+from app.services.portfolio_service import (
+    get_portfolio_by_id,
+    get_published_portfolios,
+    check_user_has_portfolio,
+    create_portfolio,
+    update_portfolio,
+    delete_portfolio
+)
 import uuid
 
 router = APIRouter(prefix="/models", tags=["models"])
@@ -138,14 +146,8 @@ async def get_model_list(
     # 페이지네이션 정규화
     page, limit = normalize_pagination(page, limit)
     
-    # 쿼리: published 상태만 조회
-    query = db.query(Portfolio).filter(Portfolio.status == "published")
-    
-    # 전체 개수
-    total_items = query.count()
-    
-    # 페이지네이션 적용
-    portfolios = apply_pagination(query.order_by(desc(Portfolio.created_at)), page, limit).all()
+    # 서비스를 통한 published 포트폴리오 목록 조회
+    portfolios, total_items = get_published_portfolios(db, page, limit)
     
     # 응답 데이터 변환
     items = [portfolio_to_model_dict(p) for p in portfolios]
@@ -162,9 +164,7 @@ async def get_model(
     """
     특정 모델 상세 정보 조회
     """
-    portfolio = db.query(Portfolio).filter(Portfolio.id == model_id).first()
-    if not portfolio:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
+    portfolio = get_portfolio_by_id(db, model_id)
     
     data = portfolio_to_model_dict(portfolio)
     return success_response({"data": data})
@@ -182,19 +182,11 @@ async def create_model(
     """
     user_id = current_user.get("sub")
     
-    # 중복 체크: 이미 포트폴리오가 있는지 확인
-    existing = db.query(Portfolio).filter(Portfolio.user_id == user_id).first()
-    if existing:
-        return fail_response("PORTFOLIO_DUP", status.HTTP_409_CONFLICT)
-    
-    # 포트폴리오 데이터 생성
+    # 포트폴리오 데이터 준비
     portfolio_data = request.model_dump(exclude_unset=True, by_alias=False)
-    portfolio_data["id"] = str(uuid.uuid4())
-    portfolio_data["user_id"] = user_id
     
-    portfolio = Portfolio(**portfolio_data)
-    db.add(portfolio)
-    db.refresh(portfolio)
+    # 서비스를 통한 포트폴리오 생성
+    portfolio = create_portfolio(db, user_id, portfolio_data)
     
     data = portfolio_to_model_dict(portfolio)
     return success_response({"data": data}, status_code=status.HTTP_201_CREATED)
@@ -211,19 +203,13 @@ async def update_model(
     모델 정보 수정
     showhost 역할만 가능, 본인 포트폴리오만 수정 가능
     """
-    portfolio = db.query(Portfolio).filter(Portfolio.id == model_id).first()
-    if not portfolio:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
-    
     user_id = current_user.get("sub")
-    if portfolio.user_id != user_id:
-        return fail_response("PORTFOLIO_FORBIDDEN_EDIT", status.HTTP_403_FORBIDDEN)
+    user_role = current_user.get("role")
     
     update_data = request.model_dump(exclude_unset=True, by_alias=False)
-    for key, value in update_data.items():
-        setattr(portfolio, key, value)
     
-    db.refresh(portfolio)
+    # 서비스를 통한 포트폴리오 수정
+    portfolio = update_portfolio(db, model_id, user_id, user_role, update_data)
     
     data = portfolio_to_model_dict(portfolio)
     return success_response({"data": data})
@@ -239,15 +225,11 @@ async def delete_model(
     모델 삭제
     showhost 역할만 가능, 본인 포트폴리오만 삭제 가능
     """
-    portfolio = db.query(Portfolio).filter(Portfolio.id == model_id).first()
-    if not portfolio:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
-    
     user_id = current_user.get("sub")
-    if portfolio.user_id != user_id:
-        return fail_response("PORTFOLIO_FORBIDDEN_DELETE", status.HTTP_403_FORBIDDEN)
+    user_role = current_user.get("role")
     
-    db.delete(portfolio)
+    # 서비스를 통한 포트폴리오 삭제
+    delete_portfolio(db, model_id, user_id, user_role)
     
     return success_response({"message": "모델이 성공적으로 삭제되었습니다."})
 
