@@ -28,7 +28,7 @@ from app.models.user import User, UserRole
 from app.models.campaign import Campaign
 from app.models.application import Application, ApplicationStatus
 from app.models.portfolio import Portfolio
-from app.models.chat import ChatRoom, ChatParticipant, ChatMessage, ChatMessageType
+from app.models.chat import ChatRoom, ChatParticipant, ChatMessage, ChatMessageType, ChatRoomStatus
 from app.services.chat_service import ensure_chat_room
 from app.utils.response import success_response, fail_response
 
@@ -517,6 +517,58 @@ async def mark_chat_room_as_read(
         exclude_user_id=None,
     )
     return success_response({"data": payload})
+
+
+@router.delete("/rooms/{room_id}")
+async def delete_chat_room(
+    room_id: str,
+    current_user: dict = Depends(require_role(UserRole.BRAND.value, UserRole.SHOWHOST.value)),
+    db: Session = Depends(get_db),
+):
+    """
+    채팅방 삭제 (하드 삭제: DB 레코드 완전 삭제)
+    """
+    user_id = current_user.get("sub")
+    
+    # 채팅방 조회 및 권한 확인
+    room = _load_room(db, room_id)
+    if not room:
+        return fail_response("ROOM_NOT_FOUND", status.HTTP_404_NOT_FOUND, additional_data={"code": "ROOM_NOT_FOUND"})
+    
+    # 참여자 확인 (권한 체크)
+    participant = _get_participant(db, room_id, user_id)
+    if not participant:
+        return fail_response("FORBIDDEN", status.HTTP_403_FORBIDDEN, additional_data={"code": "FORBIDDEN"})
+    
+    # 참여자 정보 저장 (WebSocket 이벤트 전송용)
+    participant_user_ids = [p.user_id for p in room.participants]
+    
+    # 하드 삭제: DB 레코드 완전 삭제 (CASCADE로 메시지, 참가자도 자동 삭제됨)
+    db.delete(room)
+    db.commit()
+    
+    # WebSocket 이벤트 브로드캐스트 (삭제 전에 전송)
+    await connection_manager.broadcast(
+        room_id,
+        {
+            "type": "room.deleted",
+            "payload": {
+                "roomId": room_id,
+                "deletedBy": user_id,
+            },
+        },
+        exclude_user_id=None,
+    )
+    
+    # WebSocket 연결 종료
+    # 모든 참여자의 연결을 끊음
+    for participant_user_id in participant_user_ids:
+        connection_manager.disconnect(room_id, participant_user_id)
+    
+    return success_response({
+        "success": True,
+        "message": "채팅방이 삭제되었습니다.",
+    })
 
 
 @router.websocket("/{room_id}")

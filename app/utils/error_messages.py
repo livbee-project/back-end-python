@@ -130,6 +130,10 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Invalid participant information",
         "userMessage": "채팅 참가자 정보가 올바르지 않습니다.",
     },
+    "ROOM_NOT_FOUND": {
+        "message": "Chat room not found",
+        "userMessage": "채팅방을 찾을 수 없습니다.",
+    },
 }
 
 
