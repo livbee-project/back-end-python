@@ -3,7 +3,6 @@ FastAPI 메인 애플리케이션
 PostgreSQL 데이터베이스 연결 및 기본 엔드포인트 제공
 """
 import sys
-import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,15 +12,13 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from app.core.config import settings
 from app.core.database import engine, init_db
+from app.core.logging_config import setup_logging, get_logger
 from app.utils.response import success_response, fail_response
 from app.utils.error_messages import get_error_message
 
 # 로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
+setup_logging()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager

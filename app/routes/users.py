@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, text
 from app.core.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
+from app.core.logging_config import get_logger
 from app.middleware.auth import get_current_user
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
@@ -20,6 +21,8 @@ from app.services.user_service import (
     get_user_by_id
 )
 import uuid
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -114,9 +117,6 @@ async def login(
     이메일, 비밀번호를 받아 로그인 처리 후 JWT 토큰을 발급
     역할(role)은 선택적이며, 제공되지 않으면 사용자의 실제 역할을 사용
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    
     # 입력값 검증 및 정규화
     email = request.email.lower().strip() if request.email else ""
     password = request.password or ""

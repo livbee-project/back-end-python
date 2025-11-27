@@ -1,7 +1,7 @@
 """
 데이터베이스 조회 및 권한 확인 헬퍼 함수
 """
-from typing import TypeVar, Type, Optional, Callable
+from typing import TypeVar, Type, Optional, Callable, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import NoResultFound
 from fastapi import status, HTTPException
@@ -53,7 +53,7 @@ def get_or_404(
 
 
 def check_ownership(
-    resource,
+    resource: Any,
     owner_id: str,
     owner_field: str = "created_by",
     allow_admin: bool = True,
@@ -85,7 +85,7 @@ def check_ownership(
 
 
 def require_ownership_or_admin(
-    resource,
+    resource: Any,
     user_id: str,
     user_role: Optional[str] = None,
     owner_field: str = "created_by",

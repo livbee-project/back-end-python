@@ -149,7 +149,7 @@ def extract_hashtags(text: Optional[str]) -> List[str]:
     return sorted({tag.lower() for tag in tags})
 
 
-def format_date(date_obj) -> str:
+def format_date(date_obj: Any) -> str:
     """
     날짜를 'YYYY. MM. DD' 형식으로 변환
     """
