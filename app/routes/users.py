@@ -14,6 +14,11 @@ from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
 from app.utils.error_messages import get_error_message
 from app.utils.common import mask_email, mask_phone, normalize_phone_number
+from app.services.user_service import (
+    create_user,
+    authenticate_user,
+    get_user_by_id
+)
 import uuid
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -77,40 +82,21 @@ async def signup(
             {"userMessage": "브랜드 이름은 필수 입력 항목입니다."}
         )
 
-    # 동일한 이메일로 가입된 사용자가 있는지 확인
-    existing_user = db.query(User).filter(User.email == email).first()
-    if existing_user:
-        return fail_response("DUPLICATE", status.HTTP_409_CONFLICT)
-
-    # 비밀번호 해시
-    hashed_password = get_password_hash(password)
-
-    # 사용자 데이터 생성
-    phone_value = (request.phone or "").strip() if request.phone else None
-
-    user_data = {
-        "id": str(uuid.uuid4()),
-        "name": name,
-        "email": email,
-        "password": hashed_password,
-        "role": role.value,
-        "phone": phone_value,
-    }
-
-    # 역할에 따라 해당 역할 전용 정보 추가
-    if role == UserRole.BRAND:
-        user_data["brand_name"] = (request.brand_name or "").strip() if request.brand_name else None
-        user_data["company_name"] = (request.company_name or "").strip() if request.company_name else None
-        user_data["business_number"] = (request.business_number or "").strip() if request.business_number else None
-    else:  # showhost
-        user_data["nickname"] = (request.nickname or "").strip() if request.nickname else None
-        user_data["sns_link"] = (request.sns_link or "").strip() if request.sns_link else None
-        user_data["introduction"] = (request.introduction or "").strip() if request.introduction else None
-
-    # 사용자 생성
-    user = User(**user_data)
-    db.add(user)
-    db.refresh(user)
+    # 서비스를 통한 사용자 생성
+    user = create_user(
+        db,
+        name=name,
+        email=email,
+        password=password,
+        role=role,
+        phone=request.phone,
+        brand_name=request.brand_name,
+        company_name=request.company_name,
+        business_number=request.business_number,
+        nickname=request.nickname,
+        sns_link=request.sns_link,
+        introduction=request.introduction
+    )
 
     return success_response(
         {"userId": user.id, "role": user.role},
@@ -142,44 +128,19 @@ async def login(
         logger.warning(f"Login failed: Missing email or password")
         return fail_response("VALIDATION_MISSING_FIELDS", status.HTTP_400_BAD_REQUEST)
 
-    # 이메일로 사용자 찾기
-    user = db.query(User).filter(User.email == email).first()
-    
-    # 사용자가 존재하지 않는 경우
-    if not user:
-        logger.warning(f"Login failed: User not found for email: {email[:3]}***")
-        return fail_response("INVALID_CREDENTIALS", status.HTTP_401_UNAUTHORIZED)
-
-    # 사용자 비밀번호 확인
-    if not user.password:
-        logger.error(f"User {user.id} has no password hash")
-        return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    # 비밀번호 확인
-    if not verify_password(password, user.password):
-        logger.warning(f"Login failed: Invalid password for email: {email[:3]}***")
-        return fail_response("INVALID_CREDENTIALS", status.HTTP_401_UNAUTHORIZED)
-
-    # 역할 확인 (요청한 역할이 있으면 일치하는지 확인, 없으면 사용자의 실제 역할 사용)
-    user_role_value = user.role.value if hasattr(user.role, 'value') else str(user.role)
-    if requested_role:
-        requested_role_value = requested_role.value if hasattr(requested_role, 'value') else str(requested_role)
-        if user_role_value != requested_role_value:
-            logger.warning(f"Login failed: Role mismatch. User role: {user_role_value}, Requested: {requested_role_value}")
-            return fail_response("ROLE_MISMATCH", status.HTTP_403_FORBIDDEN)
-
-    # JWT_SECRET 확인
-    from app.core.config import settings
-    if not settings.JWT_SECRET or not settings.JWT_SECRET.strip():
-        logger.error("JWT_SECRET is not configured")
-        return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    # JWT 토큰 생성
-    token = create_access_token(
-        data={"sub": user.id, "role": user_role_value},
-    )
-
-    logger.info(f"Login successful for user: {user.id} (email: {email[:3]}***)")
+    # 서비스를 통한 사용자 인증
+    try:
+        user, token = authenticate_user(
+            db,
+            email=email,
+            password=password,
+            requested_role=requested_role
+        )
+        user_role_value = user.role.value if hasattr(user.role, 'value') else str(user.role)
+        logger.info(f"Login successful for user: {user.id} (email: {email[:3]}***)")
+    except Exception as e:
+        # HTTPException은 그대로 전파
+        raise
 
     return success_response({
         "token": token,
@@ -204,9 +165,7 @@ async def get_me(
     if not user_id:
         return fail_response("AUTH_REQUIRED", status.HTTP_401_UNAUTHORIZED)
 
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
+    user = get_user_by_id(db, user_id)
 
     normalized_phone = normalize_phone_number(user.phone) if user.phone else None
 

@@ -19,6 +19,12 @@ from app.models.portfolio import Portfolio
 from app.utils.response import success_response, fail_response
 from app.utils.common import model_to_dict, models_to_list
 from app.services.chat_service import ensure_chat_room
+from app.services.application_service import (
+    create_application,
+    get_application_by_campaign_and_user,
+    get_applications_by_campaign,
+    update_application_status as update_application_status_service
+)
 import uuid
 
 router = APIRouter(prefix="/applications", tags=["applications"])
@@ -50,10 +56,11 @@ async def get_my_application(
     """
     user_id = current_user.get("sub")
 
-    application = db.query(Application).filter(
-        Application.campaign_id == campaign_id,
-        Application.user_id == user_id
-    ).first()
+    application = get_application_by_campaign_and_user(
+        db,
+        campaign_id=campaign_id,
+        user_id=user_id
+    )
 
     if not application:
         return success_response({"data": None})
@@ -73,51 +80,23 @@ async def create_application(
     """
     user_id = current_user.get("sub")
 
-    # 캠페인 확인
-    campaign = db.query(Campaign).filter(Campaign.id == request.campaign_id).first()
-    if not campaign:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
-
-    # 마감일 확인
-    if campaign.close_at < date.today():
-        return fail_response("DEADLINE_PASSED", status.HTTP_409_CONFLICT)
-
-    # 중복 지원 확인
-    existing = db.query(Application).filter(
-        Application.campaign_id == request.campaign_id,
-        Application.user_id == user_id
-    ).first()
-
-    if existing:
-        return fail_response("ALREADY_APPLIED", status.HTTP_409_CONFLICT)
-
-    # 지원서 생성
-    application = Application(
-        id=str(uuid.uuid4()),
+    # 서비스를 통한 지원서 생성
+    application = create_application(
+        db,
         campaign_id=request.campaign_id,
         user_id=user_id,
         profile_ref=request.profile_ref,
-        message=request.message,
-        status=ApplicationStatus.SUBMITTED
+        message=request.message
     )
 
-    db.add(application)
-    db.flush()
-
-    chat_room = ensure_chat_room(
-        db,
-        campaign_id=campaign.id,
-        brand_user_id=campaign.created_by,
-        showhost_user_id=user_id,
-        application_id=application.id,
-    )
-
-    db.refresh(application)
-    db.refresh(chat_room)
+    # 채팅방 조회
+    chat_room = db.query(ChatRoom).filter(
+        ChatRoom.application_id == application.id
+    ).first()
 
     data = model_to_dict(application)
     return success_response(
-        {"data": data, "chatRoomId": chat_room.id},
+        {"data": data, "chatRoomId": chat_room.id if chat_room else None},
         status_code=status.HTTP_201_CREATED,
     )
 
@@ -132,19 +111,15 @@ async def get_applications(
     특정 캠페인 지원자 목록 (오너/관리자 전용)
     """
     user_id = current_user.get("sub")
+    user_role = current_user.get("role")
 
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
-
-    # 오너 확인
-    is_owner = campaign.created_by == user_id
-    if not is_owner and current_user.get("role") != "admin":
-        return fail_response("FORBIDDEN", status.HTTP_403_FORBIDDEN)
-
-    applications = db.query(Application).filter(
-        Application.campaign_id == campaign_id
-    ).order_by(desc(Application.created_at)).all()
+    # 서비스를 통한 지원서 목록 조회
+    applications = get_applications_by_campaign(
+        db,
+        campaign_id=campaign_id,
+        user_id=user_id,
+        user_role=user_role
+    )
 
     items = models_to_list(applications)
     return success_response({"items": items})
@@ -161,23 +136,19 @@ async def update_application_status(
     지원서 상태 변경 (오너/관리자 전용)
     """
     user_id = current_user.get("sub")
+    user_role = current_user.get("role")
 
-    application = db.query(Application).filter(Application.id == application_id).first()
-    if not application:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
+    # 서비스를 통한 지원서 상태 변경
+    application = update_application_status_service(
+        db,
+        application_id=application_id,
+        new_status=request.status,
+        user_id=user_id,
+        user_role=user_role
+    )
 
-    campaign = db.query(Campaign).filter(Campaign.id == application.campaign_id).first()
-    if not campaign:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
-
-    # 오너 확인
-    is_owner = campaign.created_by == user_id
-    if not is_owner and current_user.get("role") != "admin":
-        return fail_response("FORBIDDEN", status.HTTP_403_FORBIDDEN)
-
+    campaign = application.campaign
     old_status = application.status
-    application.status = request.status
-    db.refresh(application)
 
     # 채팅방 조회
     chat_room = (
@@ -247,28 +218,19 @@ async def _update_application_status_internal(
 ):
     """지원서 상태 변경 내부 함수"""
     user_id = current_user.get("sub")
+    user_role = current_user.get("role")
 
-    application = (
-        db.query(Application)
-        .options(joinedload(Application.campaign))
-        .filter(Application.id == application_id)
-        .first()
+    # 서비스를 통한 지원서 상태 변경
+    application = update_application_status_service(
+        db,
+        application_id=application_id,
+        new_status=new_status,
+        user_id=user_id,
+        user_role=user_role
     )
-    if not application:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
 
     campaign = application.campaign
-    if not campaign:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
-
-    # 오너 확인
-    is_owner = campaign.created_by == user_id
-    if not is_owner and current_user.get("role") != "admin":
-        return fail_response("FORBIDDEN", status.HTTP_403_FORBIDDEN)
-
     old_status = application.status
-    application.status = new_status
-    db.refresh(application)
 
     # 채팅방 조회
     chat_room = (
