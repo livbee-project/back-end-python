@@ -15,6 +15,13 @@ from app.models.campaign import Campaign, ProductItem, Question
 from app.models.application import Application
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
+from app.services.campaign_service import (
+    get_campaign_by_id,
+    get_user_campaigns,
+    check_campaign_ownership,
+    check_application_exists,
+    get_campaigns_with_applied_status
+)
 from app.utils.common import (
     to_thumb,
     sanitize_html,
@@ -235,38 +242,16 @@ async def get_campaigns(
     """
     page, limit = normalize_pagination(page, limit, max_limit=50)
 
-    query = db.query(Campaign).filter(
-        Campaign.is_public == True,
-        Campaign.close_at >= date.today()
+    # 서비스를 통한 캠페인 목록 조회 (쿼리 최적화)
+    user_id = current_user.get("sub") if current_user else None
+    campaigns, total_items, applied_campaign_ids = get_campaigns_with_applied_status(
+        db,
+        page=page,
+        limit=limit,
+        search=search,
+        sort=sort,
+        user_id=user_id
     )
-
-    if search:
-        search_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                Campaign.title.ilike(search_term),
-                Campaign.content.ilike(search_term),
-                Campaign.brand_name.ilike(search_term)
-            )
-        )
-
-    if sort == "deadline":
-        query = query.order_by(Campaign.close_at.asc())
-    else:
-        query = query.order_by(desc(Campaign.created_at))
-
-    total_items = query.count()
-    campaigns = apply_pagination(query, page, limit).all()
-
-    applied_campaign_ids = set()
-    if current_user and campaigns:
-        user_id = current_user.get("sub")
-        campaign_ids = [c.id for c in campaigns]
-        applications = db.query(Application.campaign_id).filter(
-            Application.user_id == user_id,
-            Application.campaign_id.in_(campaign_ids)
-        ).all()
-        applied_campaign_ids = {app.campaign_id for app in applications}
 
     items = []
     for campaign in campaigns:
@@ -288,9 +273,7 @@ async def get_my_campaigns(
     현재 로그인된 사용자가 생성한 모든 공고 목록 조회
     """
     user_id = current_user.get("sub")
-    campaigns = db.query(Campaign).filter(
-        Campaign.created_by == user_id
-    ).order_by(desc(Campaign.created_at)).all()
+    campaigns = get_user_campaigns(db, user_id)
 
     items = models_to_list(campaigns)
     return success_response({"items": items})
@@ -305,19 +288,13 @@ async def get_campaign(
     """
     특정 공고 상세 정보 조회
     """
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
+    campaign = get_campaign_by_id(db, campaign_id)
 
     # 로그인한 사용자의 지원 여부 확인
     is_applied = False
     if current_user:
         user_id = current_user.get("sub")
-        application = db.query(Application).filter(
-            Application.user_id == user_id,
-            Application.campaign_id == campaign_id
-        ).first()
-        is_applied = application is not None
+        is_applied = check_application_exists(db, campaign_id, user_id)
 
     data = model_to_dict(campaign)
     data["isApplied"] = is_applied
@@ -335,14 +312,10 @@ async def update_campaign(
     특정 공고 정보 수정
     """
     user_id = current_user.get("sub")
+    user_role = current_user.get("role")
 
-    campaign = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.created_by == user_id
-    ).first()
-
-    if not campaign:
-        return fail_response("RECRUIT_FORBIDDEN_EDIT", status.HTTP_403_FORBIDDEN)
+    # 서비스를 통한 소유권 확인
+    campaign = check_campaign_ownership(db, campaign_id, user_id, user_role)
 
     # 업데이트할 필드만 적용
     update_data = request.model_dump(exclude_unset=True, by_alias=False)
@@ -376,14 +349,10 @@ async def delete_campaign(
     특정 공고 삭제 (isPublic을 false로 변경)
     """
     user_id = current_user.get("sub")
+    user_role = current_user.get("role")
 
-    campaign = db.query(Campaign).filter(
-        Campaign.id == campaign_id,
-        Campaign.created_by == user_id
-    ).first()
-
-    if not campaign:
-        return fail_response("RECRUIT_FORBIDDEN_DELETE", status.HTTP_403_FORBIDDEN)
+    # 서비스를 통한 소유권 확인
+    campaign = check_campaign_ownership(db, campaign_id, user_id, user_role)
 
     campaign.is_public = False
 

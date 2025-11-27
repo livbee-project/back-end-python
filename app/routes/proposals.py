@@ -16,6 +16,12 @@ from app.models.portfolio import Portfolio
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
 from app.utils.common import format_date
+from app.services.proposal_service import (
+    create_proposal,
+    get_sent_proposals,
+    get_received_proposals,
+    withdraw_proposal
+)
 import uuid
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
@@ -47,32 +53,20 @@ async def create_proposal(
     """
     proposer_id = current_user.get("sub")
 
-    # 포트폴리오 확인
-    portfolio = db.query(Portfolio).filter(Portfolio.id == request.target_portfolio_id).first()
-    if not portfolio:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND, {
-            "userMessage": "제안 대상을 찾을 수 없습니다."
-        })
-
-    # 제안 생성
-    proposal = Proposal(
-        id=str(uuid.uuid4()),
+    # 서비스를 통한 제안 생성
+    proposal = create_proposal(
+        db,
         target_portfolio_id=request.target_portfolio_id,
         proposer_id=proposer_id,
-        target_showhost_id=portfolio.user_id,
         brand_name=request.brand_name,
+        shooting_date=request.shooting_date,
+        reply_deadline=request.reply_deadline,
         fee=request.fee,
         is_fee_negotiable=request.is_fee_negotiable,
-        shooting_date=request.shooting_date,
         shooting_time=request.shooting_time,
         location=request.location,
-        reply_deadline=request.reply_deadline,
-        content=request.content,
-        status=ProposalStatus.PENDING
+        content=request.content
     )
-
-    db.add(proposal)
-    db.refresh(proposal)
 
     return success_response(
         {"message": "제안이 성공적으로 전송되었습니다."},
@@ -92,20 +86,20 @@ async def get_sent_proposals(
     현재 로그인된 브랜드 회원이 보낸 모든 제안 목록 조회
     """
     proposer_id = current_user.get("sub")
-    skip = (page - 1) * limit
 
-    query = db.query(Proposal).filter(Proposal.proposer_id == proposer_id)
-
-    if status_filter:
-        query = query.filter(Proposal.status == status_filter)
-
-    total_items = query.count()
-    proposals = query.order_by(desc(Proposal.created_at)).offset(skip).limit(limit).all()
+    # 서비스를 통한 보낸 제안 목록 조회 (쿼리 최적화: joinedload 사용)
+    proposals, total_items = get_sent_proposals(
+        db,
+        proposer_id=proposer_id,
+        status_filter=status_filter,
+        page=page,
+        limit=limit
+    )
 
     items = []
     for p in proposals:
-        # 쇼호스트 정보 조회
-        showhost = db.query(User).filter(User.id == p.target_showhost_id).first()
+        # joinedload로 이미 로드된 showhost 사용
+        showhost = p.target_showhost
         items.append({
             "id": p.id,
             "recipient": {
@@ -143,15 +137,15 @@ async def get_received_proposals(
     현재 로그인된 쇼호스트가 받은 모든 제안 목록 조회
     """
     showhost_id = current_user.get("sub")
-    skip = (page - 1) * limit
 
-    query = db.query(Proposal).filter(Proposal.target_showhost_id == showhost_id)
-
-    if status_filter:
-        query = query.filter(Proposal.status == status_filter)
-
-    total_items = query.count()
-    proposals = query.order_by(desc(Proposal.created_at)).offset(skip).limit(limit).all()
+    # 서비스를 통한 받은 제안 목록 조회
+    proposals, total_items = get_received_proposals(
+        db,
+        showhost_id=showhost_id,
+        status_filter=status_filter,
+        page=page,
+        limit=limit
+    )
 
     items = []
     for p in proposals:
@@ -190,21 +184,8 @@ async def withdraw_proposal(
     """
     proposer_id = current_user.get("sub")
 
-    proposal = db.query(Proposal).filter(Proposal.id == proposal_id).first()
-    if not proposal:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
-
-    if proposal.proposer_id != proposer_id:
-        return fail_response("FORBIDDEN", status.HTTP_403_FORBIDDEN, {
-            "userMessage": "제안을 철회할 권한이 없습니다."
-        })
-
-    if proposal.status != ProposalStatus.PENDING:
-        return fail_response("BAD_REQUEST", status.HTTP_400_BAD_REQUEST, {
-            "userMessage": "대기중인 제안만 철회할 수 있습니다."
-        })
-
-    proposal.status = ProposalStatus.WITHDRAWN
+    # 서비스를 통한 제안 철회
+    withdraw_proposal(db, proposal_id, proposer_id)
 
     return success_response({"message": "제안이 성공적으로 철회되었습니다."})
 

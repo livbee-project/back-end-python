@@ -10,6 +10,11 @@ from app.core.database import get_db
 from app.models.studio import Studio
 from app.utils.response import success_response, fail_response
 from app.utils.common import model_to_dict
+from app.services.studio_service import (
+    get_studio_by_id,
+    create_studio,
+    update_studio
+)
 import uuid
 
 router = APIRouter(prefix="/studios", tags=["studios"])
@@ -60,11 +65,9 @@ async def create_studio(
     새로운 스튜디오 정보 생성
     """
     studio_data = request.model_dump(exclude_unset=True, by_alias=False)
-    studio_data["id"] = str(uuid.uuid4())
 
-    studio = Studio(**studio_data)
-    db.add(studio)
-    db.refresh(studio)
+    # 서비스를 통한 스튜디오 생성
+    studio = create_studio(db, **studio_data)
 
     data = model_to_dict(studio)
     return success_response({"data": data}, status_code=status.HTTP_201_CREATED)
@@ -79,15 +82,10 @@ async def update_studio(
     """
     특정 ID를 가진 스튜디오 정보 수정
     """
-    studio = db.query(Studio).filter(Studio.id == studio_id).first()
-    if not studio:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
-
     update_data = request.model_dump(exclude_unset=True, by_alias=False)
-    for key, value in update_data.items():
-        setattr(studio, key, value)
 
-    db.refresh(studio)
+    # 서비스를 통한 스튜디오 수정
+    studio = update_studio(db, studio_id, **update_data)
 
     data = model_to_dict(studio)
     return success_response({"data": data})
@@ -101,9 +99,7 @@ async def get_studio(
     """
     특정 ID를 가진 스튜디오 정보 조회
     """
-    studio = db.query(Studio).filter(Studio.id == studio_id).first()
-    if not studio:
-        return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
+    studio = get_studio_by_id(db, studio_id)
 
     data = model_to_dict(studio)
     return success_response({"data": data})

@@ -14,6 +14,11 @@ from app.models.portfolio import Portfolio
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
 from app.utils.common import model_to_dict, models_to_list
+from app.services.portfolio_service import (
+    get_portfolio_by_id,
+    get_user_portfolios,
+    get_public_portfolios
+)
 import uuid
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
@@ -98,9 +103,7 @@ async def get_my_portfolios(
     내 모든 포트폴리오 목록 조회
     """
     user_id = current_user.get("sub")
-    portfolios = db.query(Portfolio).filter(
-        Portfolio.user_id == user_id
-    ).order_by(desc(Portfolio.created_at)).all()
+    portfolios = get_user_portfolios(db, user_id)
 
     items = models_to_list(portfolios)
     return success_response({"items": items})
@@ -144,14 +147,10 @@ async def update_portfolio(
     특정 포트폴리오 수정
     """
     user_id = current_user.get("sub")
+    user_role = current_user.get("role")
 
-    portfolio = db.query(Portfolio).filter(
-        Portfolio.id == portfolio_id,
-        Portfolio.user_id == user_id
-    ).first()
-
-    if not portfolio:
-        return fail_response("PORTFOLIO_FORBIDDEN_EDIT", status.HTTP_403_FORBIDDEN)
+    # 서비스를 통한 소유권 확인
+    portfolio = get_portfolio_by_id(db, portfolio_id, user_id, user_role)
 
     # 업데이트할 필드만 적용
     update_data = request.model_dump(exclude_unset=True, by_alias=False)
@@ -174,14 +173,10 @@ async def delete_portfolio(
     특정 포트폴리오 삭제
     """
     user_id = current_user.get("sub")
+    user_role = current_user.get("role")
 
-    portfolio = db.query(Portfolio).filter(
-        Portfolio.id == portfolio_id,
-        Portfolio.user_id == user_id
-    ).first()
-
-    if not portfolio:
-        return fail_response("PORTFOLIO_FORBIDDEN_DELETE", status.HTTP_403_FORBIDDEN)
+    # 서비스를 통한 소유권 확인
+    portfolio = get_portfolio_by_id(db, portfolio_id, user_id, user_role)
 
     db.delete(portfolio)
 
@@ -197,16 +192,8 @@ async def get_portfolios(
     """
     공개된 모든 포트폴리오 리스트 조회
     """
-    skip = (page - 1) * limit
-
-    # 공개 조건
-    query = db.query(Portfolio).filter(
-        Portfolio.public_scope == "전체공개",
-        Portfolio.status == "published"
-    )
-
-    total_items = query.count()
-    portfolios = query.order_by(desc(Portfolio.created_at)).offset(skip).limit(limit).all()
+    # 서비스를 통한 포트폴리오 목록 조회
+    portfolios, total_items = get_public_portfolios(db, page, limit)
 
     items = []
     for p in portfolios:
@@ -238,13 +225,10 @@ async def get_portfolio(
     """
     특정 공개 포트폴리오 상세 조회
     """
-    portfolio = db.query(Portfolio).filter(
-        Portfolio.id == portfolio_id,
-        Portfolio.public_scope == "전체공개",
-        Portfolio.status == "published"
-    ).first()
-
-    if not portfolio:
+    portfolio = get_portfolio_by_id(db, portfolio_id)
+    
+    # 공개 여부 확인
+    if portfolio.public_scope != "전체공개" or portfolio.status != "published":
         return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
 
     data = model_to_dict(portfolio)
