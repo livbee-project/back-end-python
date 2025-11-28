@@ -186,8 +186,8 @@ def _application_payload(
         "applicationId": application.id,
         "campaignTitle": application.campaign.title if application.campaign else None,
         "portfolioTitle": portfolio_title,
-        "availableDate": None,  # DB에 저장되지 않음
-        "availableTime": None,  # DB에 저장되지 않음
+        "availableDate": application.available_date.isoformat() if application.available_date else None,
+        "availableTime": application.available_time,
         "message": application.message,
         "status": mapped_status,
         "createdAt": application.created_at.isoformat() if application.created_at else None,

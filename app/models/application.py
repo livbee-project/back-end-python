@@ -2,7 +2,7 @@
 Application 모델
 지원서 정보
 """
-from sqlalchemy import Column, String, ForeignKey, Enum as SQLEnum, UniqueConstraint, DateTime
+from sqlalchemy import Column, String, ForeignKey, Enum as SQLEnum, UniqueConstraint, DateTime, Date
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -30,6 +30,8 @@ class Application(Base):
     profile_ref = Column(String, nullable=True)  # 포트폴리오 링크 or id
     message = Column(String, nullable=True)
     status = Column(SQLEnum(ApplicationStatus), default=ApplicationStatus.SUBMITTED, index=True)
+    available_date = Column(Date, nullable=True)
+    available_time = Column(String, nullable=True)
 
     # 타임스탬프
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

@@ -62,17 +62,22 @@ def test_campaign(db_session, test_brand_user):
 
 def test_create_application_success(db_session, test_campaign, test_showhost_user):
     """지원서 생성 성공 테스트"""
+    availability_date = date.today() + timedelta(days=2)
     application = create_application(
         db_session,
         campaign_id=test_campaign.id,
         user_id=test_showhost_user.id,
-        message="Test application"
+        message="Test application",
+        available_date=availability_date,
+        available_time="evening"
     )
     
     assert application is not None
     assert application.campaign_id == test_campaign.id
     assert application.user_id == test_showhost_user.id
     assert application.status == ApplicationStatus.SUBMITTED
+    assert application.available_date == availability_date
+    assert application.available_time == "evening"
 
 
 def test_create_application_deadline_passed(db_session, test_campaign, test_showhost_user):

@@ -86,7 +86,9 @@ async def create_application(
         campaign_id=request.campaign_id,
         user_id=user_id,
         profile_ref=request.profile_ref,
-        message=request.message
+        message=request.message,
+        available_date=request.available_date,
+        available_time=request.available_time
     )
 
     # 채팅방 조회
@@ -305,8 +307,8 @@ async def _send_application_status_update(
             "status": mapped_status,
             "campaignTitle": campaign.title,
             "portfolioTitle": portfolio_title,
-            "availableDate": None,  # DB에 저장되지 않음
-            "availableTime": None,  # DB에 저장되지 않음
+            "availableDate": application.available_date.isoformat() if application.available_date else None,
+            "availableTime": application.available_time,
             "message": application.message,
         }
     }
@@ -357,8 +359,8 @@ async def _create_payment_request_message(
             "applicationId": application.id,
             "amount": float(campaign.fee) if campaign.fee else 0,
             "campaignTitle": campaign.title,
-            "availableDate": None,  # DB에 저장되지 않음
-            "availableTime": None,  # DB에 저장되지 않음
+            "availableDate": application.available_date.isoformat() if application.available_date else None,
+            "availableTime": application.available_time,
         },
     )
     db.add(message)

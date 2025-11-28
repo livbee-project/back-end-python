@@ -21,7 +21,9 @@ def create_application(
     campaign_id: str,
     user_id: str,
     profile_ref: Optional[str] = None,
-    message: Optional[str] = None
+    message: Optional[str] = None,
+    available_date: Optional[date] = None,
+    available_time: Optional[str] = None,
 ) -> Application:
     """
     지원서 생성
@@ -87,6 +89,8 @@ def create_application(
         user_id=user_id,
         profile_ref=profile_ref,
         message=message,
+        available_date=available_date,
+        available_time=available_time,
         status=ApplicationStatus.SUBMITTED
     )
     

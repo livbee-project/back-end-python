@@ -168,11 +168,12 @@ async def get_me(
     user = get_user_by_id(db, user_id)
 
     normalized_phone = normalize_phone_number(user.phone) if user.phone else None
+    role_value = user.role.value if hasattr(user.role, "value") else user.role
 
     return success_response({
         "id": user.id,
         "name": user.name,
-        "role": user.role,
+        "role": role_value,
         "email": user.email,
         "maskedEmail": mask_email(user.email),
         "phone": user.phone,
