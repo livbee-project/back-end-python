@@ -80,12 +80,10 @@ class Campaign(Base):
     cover_image_url = Column(String, nullable=True)
     thumbnail_url = Column(String, nullable=True)
     live_vertical_cover_url = Column(String, nullable=True)
-    live_stream_url = Column(String, nullable=True)
 
     # 상품 정보
     product_thumbnail_url = Column(String, nullable=True)
     product_name = Column(String, nullable=True)
-    product_url = Column(String, nullable=True)
 
     # 통계
     metrics = Column(JSON, default={"views": 0, "clicks": 0, "applications": 0})

@@ -61,10 +61,8 @@ class CampaignCreate(BaseModel):
     fee_negotiable: Optional[bool] = Field(False, alias="feeNegotiable")
     cover_image_url: Optional[str] = Field(None, alias="coverImageUrl")
     live_vertical_cover_url: Optional[str] = Field(None, alias="liveVerticalCoverUrl")
-    live_stream_url: Optional[str] = Field(None, alias="liveStreamUrl")
     product_thumbnail_url: Optional[str] = Field(None, alias="productThumbnailUrl")
     product_name: Optional[str] = Field(None, alias="productName")
-    product_url: Optional[str] = Field(None, alias="productUrl")
     products: Optional[List[dict]] = None
     recruit: Optional[dict] = None
 
@@ -91,10 +89,8 @@ class CampaignUpdate(BaseModel):
     fee_negotiable: Optional[bool] = Field(None, alias="feeNegotiable")
     cover_image_url: Optional[str] = Field(None, alias="coverImageUrl")
     live_vertical_cover_url: Optional[str] = Field(None, alias="liveVerticalCoverUrl")
-    live_stream_url: Optional[str] = Field(None, alias="liveStreamUrl")
     product_thumbnail_url: Optional[str] = Field(None, alias="productThumbnailUrl")
     product_name: Optional[str] = Field(None, alias="productName")
-    product_url: Optional[str] = Field(None, alias="productUrl")
     products: Optional[List[dict]] = None
     recruit: Optional[dict] = None
 
@@ -234,10 +230,8 @@ async def create_campaign(
         "cover_image_url": request.cover_image_url,
         "thumbnail_url": thumbnail_url,
         "live_vertical_cover_url": request.live_vertical_cover_url,
-        "live_stream_url": request.live_stream_url,
         "product_thumbnail_url": request.product_thumbnail_url,
         "product_name": request.product_name,
-        "product_url": request.product_url,
         "created_by": user_id,
         "metrics": {"views": 0, "clicks": 0, "applications": 0},
     }
@@ -306,8 +300,15 @@ async def get_campaigns(
         item["isAd"] = False
         item["isApplied"] = campaign.id in applied_campaign_ids
         # detailedContent 우선, 없으면 content 사용
-        content_for_summary = campaign.detailed_content if campaign.detailed_content else campaign.content
-        item["summary"] = truncate_text(strip_tags(content_for_summary), limit=220) if content_for_summary else ""
+        try:
+            content_for_summary = campaign.detailed_content if campaign.detailed_content else campaign.content
+            if content_for_summary and isinstance(content_for_summary, str):
+                item["summary"] = truncate_text(strip_tags(content_for_summary), limit=220)
+            else:
+                item["summary"] = ""
+        except Exception as e:
+            # summary 생성 실패 시 빈 문자열로 처리
+            item["summary"] = ""
         items.append(item)
 
     return success_response(build_paginated_payload(items, total_items, page, limit))
