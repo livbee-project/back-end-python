@@ -61,6 +61,7 @@ class Campaign(Base):
     prefix = Column(String, nullable=True)  # enum: ["쇼호스트모집", "촬영스태프", "모델모집", "기타모집"]
     title = Column(String, nullable=False)
     content = Column(String, nullable=True)
+    detailed_content = Column(String, nullable=True)
     category = Column(String, nullable=True)  # enum: ["뷰티", "패션", "식품", "가전", "생활/리빙"]
 
     # 일정 및 장소

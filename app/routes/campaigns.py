@@ -25,8 +25,8 @@ from app.services.campaign_service import (
 from app.utils.common import (
     to_thumb,
     sanitize_html,
-    category_to_code,
     code_to_category,
+    prefix_to_korean,
     strip_tags,
     truncate_text,
     model_to_dict,
@@ -49,6 +49,7 @@ class CampaignCreate(BaseModel):
     prefix: Optional[str] = None
     title: str
     content: Optional[str] = None
+    detailed_content: Optional[str] = Field(None, alias="detailedContent")
     category: Optional[str] = None
     location: Optional[str] = None
     shoot_date: date = Field(..., alias="shootDate")
@@ -78,6 +79,7 @@ class CampaignUpdate(BaseModel):
     prefix: Optional[str] = None
     title: Optional[str] = None
     content: Optional[str] = None
+    detailed_content: Optional[str] = Field(None, alias="detailedContent")
     category: Optional[str] = None
     location: Optional[str] = None
     shoot_date: Optional[date] = Field(None, alias="shootDate")
@@ -142,10 +144,46 @@ async def create_campaign(
     """
     user_id = current_user.get("sub")
 
-    # 카테고리 변환
-    category_korean = category_to_code(request.category) if request.category else None
-    if category_korean:
-        category_korean = code_to_category(category_korean) or request.category
+    # 날짜 유효성 검증
+    today = date.today()
+    if request.shoot_date < today:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="촬영일은 오늘 이후여야 합니다."
+        )
+    if request.close_at <= request.shoot_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="마감일은 촬영일보다 이후여야 합니다."
+        )
+
+    # 시간 유효성 검증
+    try:
+        start = datetime.strptime(request.start_time, "%H:%M")
+        end = datetime.strptime(request.end_time, "%H:%M")
+        # 다음날로 넘어가는 경우를 제외하고 end_time이 start_time보다 이후인지 확인
+        if end < start:
+            # 다음날로 넘어가는 경우는 허용 (자동 계산 로직에서 처리)
+            pass
+        elif end == start:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="종료 시간은 시작 시간보다 이후여야 합니다."
+            )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="시간 형식이 올바르지 않습니다. (HH:MM 형식)"
+        )
+
+    # prefix 영문 코드 → 한글 변환
+    prefix_korean = prefix_to_korean(request.prefix) if request.prefix else None
+
+    # 카테고리 변환 (영문 코드 → 한글)
+    category_korean = code_to_category(request.category) if request.category else None
+    if not category_korean and request.category:
+        # 변환되지 않은 경우 (이미 한글이거나 잘못된 값) 원본 유지
+        category_korean = request.category
 
     # durationHours 자동 계산
     duration_hours = request.duration_hours
@@ -161,8 +199,12 @@ async def create_campaign(
         except Exception:
             pass
 
-    # 콘텐츠 sanitize
+    # 콘텐츠 sanitize (detailedContent 우선, 없으면 content 사용)
+    detailed_content = sanitize_html(request.detailed_content) if request.detailed_content else None
     content = sanitize_html(request.content) if request.content else None
+    # detailedContent가 없으면 content를 사용
+    if not detailed_content and content:
+        detailed_content = content
     brand_introduction = sanitize_html(request.brand_introduction) if request.brand_introduction else None
 
     # 썸네일 자동 생성
@@ -176,9 +218,10 @@ async def create_campaign(
         "is_public": request.is_public if request.is_public is not None else True,
         "brand_name": request.brand_name,
         "brand_introduction": brand_introduction,
-        "prefix": request.prefix,
+        "prefix": prefix_korean,
         "title": request.title,
         "content": content,
+        "detailed_content": detailed_content,
         "category": category_korean,
         "location": request.location,
         "shoot_date": request.shoot_date,
@@ -320,9 +363,59 @@ async def update_campaign(
     # 업데이트할 필드만 적용
     update_data = request.model_dump(exclude_unset=True, by_alias=False)
 
+    # 날짜 유효성 검증 (업데이트되는 경우만)
+    if "shoot_date" in update_data or "close_at" in update_data:
+        shoot_date = update_data.get("shoot_date", campaign.shoot_date)
+        close_at = update_data.get("close_at", campaign.close_at)
+        today = date.today()
+        
+        if shoot_date < today:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="촬영일은 오늘 이후여야 합니다."
+            )
+        if close_at <= shoot_date:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="마감일은 촬영일보다 이후여야 합니다."
+            )
+
+    # 시간 유효성 검증 (업데이트되는 경우만)
+    if "start_time" in update_data or "end_time" in update_data:
+        start_time = update_data.get("start_time", campaign.start_time)
+        end_time = update_data.get("end_time", campaign.end_time)
+        try:
+            start = datetime.strptime(start_time, "%H:%M")
+            end = datetime.strptime(end_time, "%H:%M")
+            if end < start:
+                # 다음날로 넘어가는 경우는 허용
+                pass
+            elif end == start:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="종료 시간은 시작 시간보다 이후여야 합니다."
+                )
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="시간 형식이 올바르지 않습니다. (HH:MM 형식)"
+            )
+
+    # prefix 영문 코드 → 한글 변환
+    if "prefix" in update_data and update_data["prefix"]:
+        update_data["prefix"] = prefix_to_korean(update_data["prefix"])
+
+    # 카테고리 변환 (영문 코드 → 한글)
+    if "category" in update_data and update_data["category"]:
+        category_korean = code_to_category(update_data["category"])
+        if category_korean:
+            update_data["category"] = category_korean
+
     # 콘텐츠 sanitize
     if "content" in update_data and update_data["content"]:
         update_data["content"] = sanitize_html(update_data["content"])
+    if "detailed_content" in update_data and update_data["detailed_content"]:
+        update_data["detailed_content"] = sanitize_html(update_data["detailed_content"])
     if "brand_introduction" in update_data and update_data["brand_introduction"]:
         update_data["brand_introduction"] = sanitize_html(update_data["brand_introduction"])
 
