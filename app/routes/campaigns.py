@@ -298,10 +298,16 @@ async def get_campaigns(
 
     items = []
     for campaign in campaigns:
-        item = model_to_dict(campaign)
+        # 목록 조회 시 불필요한 필드 제외 (응답 크기 최적화)
+        item = model_to_dict(
+            campaign,
+            exclude=['brand_introduction', 'detailed_content']
+        )
         item["isAd"] = False
         item["isApplied"] = campaign.id in applied_campaign_ids
-        item["summary"] = truncate_text(strip_tags(campaign.content), limit=220)
+        # detailedContent 우선, 없으면 content 사용
+        content_for_summary = campaign.detailed_content if campaign.detailed_content else campaign.content
+        item["summary"] = truncate_text(strip_tags(content_for_summary), limit=220) if content_for_summary else ""
         items.append(item)
 
     return success_response(build_paginated_payload(items, total_items, page, limit))
