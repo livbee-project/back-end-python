@@ -65,6 +65,7 @@ class CampaignCreate(BaseModel):
     product_name: Optional[str] = Field(None, alias="productName")
     products: Optional[List[dict]] = None
     recruit: Optional[dict] = None
+    qualifications: Optional[List[str]] = None
 
     class Config:
         populate_by_name = True
@@ -93,6 +94,7 @@ class CampaignUpdate(BaseModel):
     product_name: Optional[str] = Field(None, alias="productName")
     products: Optional[List[dict]] = None
     recruit: Optional[dict] = None
+    qualifications: Optional[List[str]] = None
 
     class Config:
         populate_by_name = True
@@ -208,6 +210,11 @@ async def create_campaign(
     if request.cover_image_url:
         thumbnail_url = to_thumb(request.cover_image_url)
 
+    # 자격 요건 필터링 (빈 문자열 제거)
+    qualifications = None
+    if request.qualifications:
+        qualifications = [q for q in request.qualifications if q and q.strip()]
+
     # 캠페인 데이터 생성
     campaign_data = {
         "id": str(uuid.uuid4()),
@@ -232,6 +239,7 @@ async def create_campaign(
         "live_vertical_cover_url": request.live_vertical_cover_url,
         "product_thumbnail_url": request.product_thumbnail_url,
         "product_name": request.product_name,
+        "qualifications": qualifications if qualifications else None,
         "created_by": user_id,
         "metrics": {"views": 0, "clicks": 0, "applications": 0},
     }
@@ -429,6 +437,14 @@ async def update_campaign(
     # 썸네일 자동 생성
     if "cover_image_url" in update_data and update_data["cover_image_url"] and not update_data.get("thumbnail_url"):
         update_data["thumbnail_url"] = to_thumb(update_data["cover_image_url"])
+
+    # 자격 요건 필터링 (빈 문자열 제거)
+    if "qualifications" in update_data:
+        if update_data["qualifications"]:
+            qualifications = [q for q in update_data["qualifications"] if q and q.strip()]
+            update_data["qualifications"] = qualifications if qualifications else None
+        else:
+            update_data["qualifications"] = None
 
     for key, value in update_data.items():
         setattr(campaign, key, value)

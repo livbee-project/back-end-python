@@ -85,6 +85,9 @@ class Campaign(Base):
     product_thumbnail_url = Column(String, nullable=True)
     product_name = Column(String, nullable=True)
 
+    # 자격 요건
+    qualifications = Column(ARRAY(String), nullable=True)
+
     # 통계
     metrics = Column(JSON, default={"views": 0, "clicks": 0, "applications": 0})
 
