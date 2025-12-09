@@ -164,13 +164,10 @@ async def get_upload_signature(
     
     # 업로드 파라미터 구성 (서명 생성에 포함될 파라미터들)
     # Cloudinary는 모든 파라미터를 문자열로 처리하므로 문자열로 변환
+    # 참고: resource_type은 URL 경로에 포함되므로 서명에 포함하지 않음
     upload_params = {
         "timestamp": str(timestamp),
     }
-    
-    # resource_type 추가 (Cloudinary URL 경로에 포함되므로 서명에 포함 필요)
-    # type 파라미터를 기반으로 resource_type 결정
-    upload_params["resource_type"] = type  # "image" 또는 "raw"
     
     # 폴더 경로 추가
     if folder_path:
