@@ -138,6 +138,9 @@ jobs:
             DB_PASSWORD=${{ secrets.DEV_DB_PASSWORD }}
             JWT_SECRET=${{ secrets.DEV_JWT_SECRET }}
             NODE_ENV=development
+            CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+            CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+            CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
             EOF
 
             docker stop livbee-backend-dev 2>/dev/null || true
