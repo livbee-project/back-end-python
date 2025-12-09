@@ -305,6 +305,9 @@ async def get_campaigns(
             campaign,
             exclude=['brand_introduction', 'detailed_content']
         )
+        # product_thumbnail_url 필드 명시적으로 포함 (프론트엔드 요청)
+        if hasattr(campaign, 'product_thumbnail_url'):
+            item["product_thumbnail_url"] = campaign.product_thumbnail_url
         item["isAd"] = False
         item["isApplied"] = campaign.id in applied_campaign_ids
         # detailedContent 우선, 없으면 content 사용
