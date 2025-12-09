@@ -9,4 +9,5 @@ from app.routes import (
     news,
     studios,
     chat,
+    uploads,
 )
