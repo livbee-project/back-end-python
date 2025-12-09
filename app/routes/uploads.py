@@ -99,17 +99,26 @@ async def get_upload_signature(
     
     폴더 구조:
     - 기본: livbee/ (또는 CLOUDINARY_FOLDER 환경변수 값)
-    - 캠페인: livbee/campaigns/{campaign_id}/
-    - 포트폴리오: livbee/portfolios/{portfolio_id}/
-    - 뉴스: livbee/news/{news_id}/
-    - 사용자: livbee/users/{user_id}/
-    - 스튜디오: livbee/studios/{studio_id}/
+    - category만 제공: livbee/{category}/ (예: livbee/campaigns/)
+    - category + resource_id 제공: livbee/{category}/{resource_id}/ (예: livbee/campaigns/{campaign_id}/)
+    
+    예시:
+    - category=campaign, resource_id 없음: livbee/campaigns/ (모집공고 등록 전 임시 업로드)
+    - category=campaign, resource_id={campaign_id}: livbee/campaigns/{campaign_id}/ (캠페인 생성 후)
     """
     # Cloudinary 설정 확인
-    if not settings.CLOUDINARY_API_KEY or not settings.CLOUDINARY_API_SECRET:
+    if not settings.CLOUDINARY_API_KEY or not settings.CLOUDINARY_API_SECRET or not settings.CLOUDINARY_CLOUD_NAME:
+        missing_settings = []
+        if not settings.CLOUDINARY_API_KEY:
+            missing_settings.append("CLOUDINARY_API_KEY")
+        if not settings.CLOUDINARY_API_SECRET:
+            missing_settings.append("CLOUDINARY_API_SECRET")
+        if not settings.CLOUDINARY_CLOUD_NAME:
+            missing_settings.append("CLOUDINARY_CLOUD_NAME")
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Cloudinary 설정이 완료되지 않았습니다."
+            detail=f"Cloudinary 설정이 완료되지 않았습니다. 누락된 설정: {', '.join(missing_settings)}"
         )
     
     # 타입 검증
