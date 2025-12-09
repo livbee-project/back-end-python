@@ -168,6 +168,10 @@ async def get_upload_signature(
         "timestamp": str(timestamp),
     }
     
+    # resource_type 추가 (Cloudinary URL 경로에 포함되므로 서명에 포함 필요)
+    # type 파라미터를 기반으로 resource_type 결정
+    upload_params["resource_type"] = type  # "image" 또는 "raw"
+    
     # 폴더 경로 추가
     if folder_path:
         upload_params["folder"] = folder_path
@@ -175,14 +179,6 @@ async def get_upload_signature(
     # public_id 추가 (서명 생성에 포함)
     if public_id:
         upload_params["public_id"] = public_id
-    
-    # 타입별 추가 파라미터
-    if type == "image":
-        # 이미지 업로드 파라미터 (필요시 추가)
-        pass
-    elif type == "raw":
-        # 파일 업로드 파라미터 (필요시 추가)
-        pass
     
     # 디버깅: 서명 생성 전 파라미터 로깅 (INFO 레벨로 변경하여 배포 환경에서도 확인 가능)
     logger.info(f"Cloudinary 서명 생성 요청 - type={type}, category={category}, resource_id={resource_id}, public_id={public_id}")
