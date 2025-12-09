@@ -10,6 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.core.config import settings
 from app.middleware.auth import get_current_user
 from app.utils.response import success_response, fail_response
+from app.core.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
@@ -63,11 +66,12 @@ def generate_cloudinary_signature(params: dict, api_secret: str) -> str:
         서명 문자열 (hexdigest)
     """
     # 모든 파라미터 값을 문자열로 변환 (Cloudinary 요구사항)
+    # None이나 빈 문자열은 제외
     string_params = {}
     for key, value in params.items():
-        if value is not None:
-            # None이 아닌 모든 값을 문자열로 변환
-            string_params[key] = str(value)
+        if value is not None and str(value).strip():
+            # None이 아니고 빈 문자열이 아닌 모든 값을 문자열로 변환
+            string_params[key] = str(value).strip()
     
     # 파라미터를 키 기준으로 알파벳 순서로 정렬
     sorted_params = sorted(string_params.items())
@@ -75,12 +79,17 @@ def generate_cloudinary_signature(params: dict, api_secret: str) -> str:
     # 파라미터 문자열 생성 (key=value&key=value 형식)
     param_string = "&".join([f"{k}={v}" for k, v in sorted_params])
     
+    # 디버깅: 서명 생성 시 사용한 파라미터 로깅
+    logger.debug(f"Cloudinary 서명 생성 - 파라미터 문자열: {param_string}")
+    
     # HMAC-SHA1 서명 생성
     signature = hmac.new(
         api_secret.encode('utf-8'),
         param_string.encode('utf-8'),
         hashlib.sha1
     ).hexdigest()
+    
+    logger.debug(f"Cloudinary 서명 생성 - 서명: {signature}")
     
     return signature
 
@@ -175,6 +184,11 @@ async def get_upload_signature(
         # 파일 업로드 파라미터 (필요시 추가)
         pass
     
+    # 디버깅: 서명 생성 전 파라미터 로깅
+    logger.info(f"Cloudinary 서명 생성 요청 - type={type}, category={category}, resource_id={resource_id}, public_id={public_id}")
+    logger.debug(f"서명 생성 전 upload_params: {upload_params}")
+    logger.debug(f"폴더 경로: {folder_path}")
+    
     # Cloudinary 서명 생성
     signature = generate_cloudinary_signature(
         upload_params,
@@ -192,6 +206,9 @@ async def get_upload_signature(
     # 폴더 경로 추가
     if folder_path:
         response_data["folder"] = folder_path
+    
+    # 디버깅: 응답 데이터 로깅
+    logger.debug(f"서명 생성 완료 - 응답 데이터: {response_data}")
     
     return success_response({"data": response_data})
 
