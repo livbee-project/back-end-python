@@ -56,14 +56,23 @@ def generate_cloudinary_signature(params: dict, api_secret: str) -> str:
     Cloudinary 업로드 서명 생성
     
     Args:
-        params: 업로드 파라미터 딕셔너리
+        params: 업로드 파라미터 딕셔너리 (모든 값은 문자열로 변환되어야 함)
         api_secret: Cloudinary API Secret
     
     Returns:
         서명 문자열 (hexdigest)
     """
-    # 파라미터를 키 기준으로 정렬하고 문자열로 변환
-    sorted_params = sorted(params.items())
+    # 모든 파라미터 값을 문자열로 변환 (Cloudinary 요구사항)
+    string_params = {}
+    for key, value in params.items():
+        if value is not None:
+            # None이 아닌 모든 값을 문자열로 변환
+            string_params[key] = str(value)
+    
+    # 파라미터를 키 기준으로 알파벳 순서로 정렬
+    sorted_params = sorted(string_params.items())
+    
+    # 파라미터 문자열 생성 (key=value&key=value 형식)
     param_string = "&".join([f"{k}={v}" for k, v in sorted_params])
     
     # HMAC-SHA1 서명 생성
@@ -138,15 +147,16 @@ async def get_upload_signature(
             detail=f"category 파라미터는 다음 중 하나여야 합니다: {', '.join(valid_categories)}"
         )
     
-    # 타임스탬프 생성 (현재 시간)
+    # 타임스탬프 생성 (현재 시간, 문자열로 변환)
     timestamp = int(time.time())
     
     # 폴더 경로 생성
     folder_path = get_upload_folder_path(category, resource_id)
     
     # 업로드 파라미터 구성 (서명 생성에 포함될 파라미터들)
+    # Cloudinary는 모든 파라미터를 문자열로 처리하므로 문자열로 변환
     upload_params = {
-        "timestamp": timestamp,
+        "timestamp": str(timestamp),
     }
     
     # 폴더 경로 추가
