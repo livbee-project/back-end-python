@@ -4,7 +4,6 @@ Upload 라우트
 """
 import time
 import hashlib
-import hmac
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.core.config import settings
@@ -64,6 +63,10 @@ def generate_cloudinary_signature(params: dict, api_secret: str) -> str:
     
     Returns:
         서명 문자열 (hexdigest)
+    
+    참고:
+        Cloudinary는 HMAC-SHA1이 아닌 SHA-1 해시 방식을 사용합니다.
+        서명 생성 방식: SHA1(param_string + api_secret)
     """
     # 모든 파라미터 값을 문자열로 변환 (Cloudinary 요구사항)
     # None이나 빈 문자열은 제외
@@ -82,12 +85,10 @@ def generate_cloudinary_signature(params: dict, api_secret: str) -> str:
     # 디버깅: 서명 생성 시 사용한 파라미터 로깅 (INFO 레벨로 변경하여 배포 환경에서도 확인 가능)
     logger.info(f"Cloudinary 서명 생성 - 파라미터 문자열: {param_string}")
     
-    # HMAC-SHA1 서명 생성
-    signature = hmac.new(
-        api_secret.encode('utf-8'),
-        param_string.encode('utf-8'),
-        hashlib.sha1
-    ).hexdigest()
+    # Cloudinary 서명 생성 방식: SHA-1 해시 (HMAC이 아님)
+    # 서명 생성: SHA1(param_string + api_secret)
+    signature_string = f"{param_string}{api_secret}"
+    signature = hashlib.sha1(signature_string.encode('utf-8')).hexdigest()
     
     logger.info(f"Cloudinary 서명 생성 - 서명: {signature}")
     
