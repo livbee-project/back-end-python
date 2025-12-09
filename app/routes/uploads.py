@@ -81,6 +81,7 @@ async def get_upload_signature(
     type: str = Query(..., description="업로드 타입: image 또는 raw"),
     category: Optional[str] = Query(None, description="파일 카테고리: campaign, portfolio, news, user, studio"),
     resource_id: Optional[str] = Query(None, description="리소스 ID (campaign_id, portfolio_id 등)"),
+    public_id: Optional[str] = Query(None, description="파일명 (public_id, Cloudinary 업로드 시 사용)"),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -92,6 +93,7 @@ async def get_upload_signature(
         type: 업로드 타입 (image 또는 raw)
         category: 파일 카테고리 (campaign, portfolio, news, user, studio)
         resource_id: 리소스 ID (campaign_id, portfolio_id 등, 선택사항)
+        public_id: 파일명 (public_id, 선택사항, 서명 생성에 포함)
         current_user: 현재 인증된 사용자 정보
     
     Returns:
@@ -142,7 +144,7 @@ async def get_upload_signature(
     # 폴더 경로 생성
     folder_path = get_upload_folder_path(category, resource_id)
     
-    # 업로드 파라미터 구성
+    # 업로드 파라미터 구성 (서명 생성에 포함될 파라미터들)
     upload_params = {
         "timestamp": timestamp,
     }
@@ -150,6 +152,10 @@ async def get_upload_signature(
     # 폴더 경로 추가
     if folder_path:
         upload_params["folder"] = folder_path
+    
+    # public_id 추가 (서명 생성에 포함)
+    if public_id:
+        upload_params["public_id"] = public_id
     
     # 타입별 추가 파라미터
     if type == "image":
