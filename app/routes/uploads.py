@@ -79,8 +79,8 @@ def generate_cloudinary_signature(params: dict, api_secret: str) -> str:
     # 파라미터 문자열 생성 (key=value&key=value 형식)
     param_string = "&".join([f"{k}={v}" for k, v in sorted_params])
     
-    # 디버깅: 서명 생성 시 사용한 파라미터 로깅
-    logger.debug(f"Cloudinary 서명 생성 - 파라미터 문자열: {param_string}")
+    # 디버깅: 서명 생성 시 사용한 파라미터 로깅 (INFO 레벨로 변경하여 배포 환경에서도 확인 가능)
+    logger.info(f"Cloudinary 서명 생성 - 파라미터 문자열: {param_string}")
     
     # HMAC-SHA1 서명 생성
     signature = hmac.new(
@@ -89,7 +89,7 @@ def generate_cloudinary_signature(params: dict, api_secret: str) -> str:
         hashlib.sha1
     ).hexdigest()
     
-    logger.debug(f"Cloudinary 서명 생성 - 서명: {signature}")
+    logger.info(f"Cloudinary 서명 생성 - 서명: {signature}")
     
     return signature
 
@@ -184,10 +184,10 @@ async def get_upload_signature(
         # 파일 업로드 파라미터 (필요시 추가)
         pass
     
-    # 디버깅: 서명 생성 전 파라미터 로깅
+    # 디버깅: 서명 생성 전 파라미터 로깅 (INFO 레벨로 변경하여 배포 환경에서도 확인 가능)
     logger.info(f"Cloudinary 서명 생성 요청 - type={type}, category={category}, resource_id={resource_id}, public_id={public_id}")
-    logger.debug(f"서명 생성 전 upload_params: {upload_params}")
-    logger.debug(f"폴더 경로: {folder_path}")
+    logger.info(f"서명 생성 전 upload_params: {upload_params}")
+    logger.info(f"폴더 경로: {folder_path}")
     
     # Cloudinary 서명 생성
     signature = generate_cloudinary_signature(
@@ -207,8 +207,8 @@ async def get_upload_signature(
     if folder_path:
         response_data["folder"] = folder_path
     
-    # 디버깅: 응답 데이터 로깅
-    logger.debug(f"서명 생성 완료 - 응답 데이터: {response_data}")
+    # 디버깅: 응답 데이터 로깅 (INFO 레벨로 변경하여 배포 환경에서도 확인 가능)
+    logger.info(f"서명 생성 완료 - 응답 데이터: {response_data}")
     
     return success_response({"data": response_data})
 
