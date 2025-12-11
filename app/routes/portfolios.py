@@ -207,10 +207,15 @@ async def create_portfolio(
     portfolio_data = request.model_dump(exclude_unset=True, by_alias=False)
     if "website_url" in portfolio_data and portfolio_data["website_url"] and not portfolio_data.get("youtube_url"):
         portfolio_data["youtube_url"] = portfolio_data["website_url"]
-        portfolio_data.pop("website_url", None)
+        # website_url은 모델에 있으므로 None으로 설정 (삭제하지 않음)
+        portfolio_data["website_url"] = None
 
     portfolio_data["id"] = str(uuid.uuid4())
     portfolio_data["user_id"] = user_id
+
+    # Portfolio 모델에 없는 필드 제거 (안전성)
+    portfolio_fields = {col.name for col in Portfolio.__table__.columns}
+    portfolio_data = {k: v for k, v in portfolio_data.items() if k in portfolio_fields}
 
     portfolio = Portfolio(**portfolio_data)
     db.add(portfolio)
@@ -304,10 +309,13 @@ async def update_portfolio(
     # websiteUrl을 youtube_url로 매핑 (프론트엔드 호환성)
     if "website_url" in update_data and update_data["website_url"] and not update_data.get("youtube_url"):
         update_data["youtube_url"] = update_data["website_url"]
-        update_data.pop("website_url", None)
+        update_data["website_url"] = None
     
+    # Portfolio 모델에 있는 필드만 업데이트 (안전성)
+    portfolio_fields = {col.name for col in Portfolio.__table__.columns}
     for key, value in update_data.items():
-        setattr(portfolio, key, value)
+        if key in portfolio_fields:
+            setattr(portfolio, key, value)
 
     db.refresh(portfolio)
 

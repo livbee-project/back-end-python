@@ -272,7 +272,12 @@ async def create_model(
     # websiteUrl을 youtube_url로 매핑 (프론트엔드 호환성)
     if "website_url" in portfolio_data and portfolio_data["website_url"] and not portfolio_data.get("youtube_url"):
         portfolio_data["youtube_url"] = portfolio_data["website_url"]
-        portfolio_data.pop("website_url", None)
+        portfolio_data["website_url"] = None
+    
+    # Portfolio 모델에 없는 필드 제거 (안전성)
+    from app.models.portfolio import Portfolio
+    portfolio_fields = {col.name for col in Portfolio.__table__.columns}
+    portfolio_data = {k: v for k, v in portfolio_data.items() if k in portfolio_fields}
     
     # 서비스를 통한 포트폴리오 생성
     portfolio = create_portfolio(db, user_id, portfolio_data)
@@ -359,7 +364,12 @@ async def update_model(
     # websiteUrl을 youtube_url로 매핑 (프론트엔드 호환성)
     if "website_url" in update_data and update_data["website_url"] and not update_data.get("youtube_url"):
         update_data["youtube_url"] = update_data["website_url"]
-        update_data.pop("website_url", None)
+        update_data["website_url"] = None
+    
+    # Portfolio 모델에 있는 필드만 업데이트 (안전성)
+    from app.models.portfolio import Portfolio
+    portfolio_fields = {col.name for col in Portfolio.__table__.columns}
+    update_data = {k: v for k, v in update_data.items() if k in portfolio_fields}
     
     # 서비스를 통한 포트폴리오 수정
     portfolio = update_portfolio(db, model_id, user_id, user_role, update_data)

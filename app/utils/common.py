@@ -329,15 +329,26 @@ def validate_url(url: Optional[str]) -> bool:
     if not url:
         return True  # None이나 빈 문자열은 허용 (선택 필드)
     
-    url_pattern = re.compile(
-        r'^https?://'  # http:// or https://
-        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain...
-        r'localhost|'  # localhost...
-        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
-        r'(?::\d+)?'  # optional port
-        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-    
-    return bool(url_pattern.match(url))
+    try:
+        url_str = str(url).strip()
+        if not url_str:
+            return True
+        
+        # 기본적인 URL 형식 검증 (더 관대한 패턴)
+        # http:// 또는 https://로 시작하는지 확인
+        if not url_str.startswith(('http://', 'https://')):
+            return False
+        
+        # 최소한의 도메인 형식 확인
+        # http:// 또는 https:// 제거 후 남은 부분 확인
+        url_without_scheme = url_str.split('://', 1)[1] if '://' in url_str else ''
+        if not url_without_scheme or len(url_without_scheme.split('/')[0].split('.')) < 1:
+            return False
+        
+        return True
+    except Exception:
+        # 예외 발생 시 False 반환 (안전하게 처리)
+        return False
 
 
 def validate_phone_number(phone: Optional[str]) -> bool:
