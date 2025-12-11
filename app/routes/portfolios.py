@@ -15,6 +15,9 @@ from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
 from app.utils.common import model_to_dict, models_to_list, validate_url, validate_phone_number
 from app.utils.error_messages import get_error_message
+from app.core.logging_config import get_logger
+
+logger = get_logger(__name__)
 from app.services.portfolio_service import (
     get_portfolio_by_id,
     get_user_portfolios,
@@ -214,12 +217,36 @@ async def create_portfolio(
     portfolio_data["user_id"] = user_id
 
     # Portfolio 모델에 없는 필드 제거 (안전성)
-    portfolio_fields = {col.name for col in Portfolio.__table__.columns}
-    portfolio_data = {k: v for k, v in portfolio_data.items() if k in portfolio_fields}
+    try:
+        portfolio_fields = {col.name for col in Portfolio.__table__.columns}
+        portfolio_data = {k: v for k, v in portfolio_data.items() if k in portfolio_fields}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "INTERNAL_ERROR",
+                "message": "포트폴리오 필드 필터링 중 오류가 발생했습니다.",
+                "userMessage": "서버에 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+            }
+        )
 
-    portfolio = Portfolio(**portfolio_data)
-    db.add(portfolio)
-    db.refresh(portfolio)
+    try:
+        portfolio = Portfolio(**portfolio_data)
+        db.add(portfolio)
+        db.flush()  # 다른 라우트들과 동일하게 flush 사용
+        db.refresh(portfolio)
+    except Exception as e:
+        db.rollback()
+        # 로그에 상세 정보 기록 (실제 에러는 로그에만 남김)
+        logger.error(f"포트폴리오 생성 중 오류 발생: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "INTERNAL_ERROR",
+                "message": "포트폴리오 생성 중 오류가 발생했습니다.",
+                "userMessage": "서버에 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+            }
+        )
 
     data = model_to_dict(portfolio)
     return success_response(
