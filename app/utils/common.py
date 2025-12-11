@@ -315,3 +315,61 @@ def models_to_list(
         for model in models
     ]
 
+
+def validate_url(url: Optional[str]) -> bool:
+    """
+    URL 형식 검증
+    
+    Args:
+        url: 검증할 URL 문자열
+    
+    Returns:
+        유효한 URL이면 True, 아니면 False
+    """
+    if not url:
+        return True  # None이나 빈 문자열은 허용 (선택 필드)
+    
+    url_pattern = re.compile(
+        r'^https?://'  # http:// or https://
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # domain...
+        r'localhost|'  # localhost...
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
+        r'(?::\d+)?'  # optional port
+        r'(?:/?|[/?]\S+)$', re.IGNORECASE)
+    
+    return bool(url_pattern.match(url))
+
+
+def validate_phone_number(phone: Optional[str]) -> bool:
+    """
+    전화번호 형식 검증 (한국 전화번호)
+    
+    Args:
+        phone: 검증할 전화번호 문자열
+    
+    Returns:
+        유효한 전화번호이면 True, 아니면 False
+    """
+    if not phone:
+        return True  # None이나 빈 문자열은 허용 (선택 필드)
+    
+    # 숫자만 추출
+    digits = re.sub(r'\D', '', phone)
+    
+    # 한국 전화번호: 10자리 또는 11자리 (휴대폰: 11자리, 일반전화: 10자리)
+    if len(digits) < 10 or len(digits) > 11:
+        return False
+    
+    # 휴대폰 번호: 010으로 시작하는 11자리
+    if len(digits) == 11 and digits.startswith('010'):
+        return True
+    
+    # 일반 전화번호: 지역번호로 시작하는 10자리
+    if len(digits) == 10:
+        # 지역번호 체크 (02, 031, 032, 033, 041, 042, 043, 044, 051, 052, 053, 054, 055, 061, 062, 063, 064)
+        area_codes = ['02', '031', '032', '033', '041', '042', '043', '044', 
+                     '051', '052', '053', '054', '055', '061', '062', '063', '064']
+        if any(digits.startswith(code) for code in area_codes):
+            return True
+    
+    return False

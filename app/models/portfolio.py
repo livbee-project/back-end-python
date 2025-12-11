@@ -26,7 +26,7 @@ class Portfolio(Base):
     # 이미지 URL
     main_thumbnail_url = Column(String, nullable=True)
     background_image_url = Column(String, nullable=True)
-    sub_thumbnail_urls = Column(ARRAY(String), nullable=True)  # 최대 5개
+    sub_thumbnail_urls = Column(ARRAY(String), nullable=True)  # 최대 9개 (포트폴리오), 최대 5개 (모델)
 
     # 상태 및 공개 설정
     status = Column(String, default="published")  # enum: ["published"]

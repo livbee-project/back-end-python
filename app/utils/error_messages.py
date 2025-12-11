@@ -108,6 +108,22 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Portfolio already exists for this user",
         "userMessage": "이미 포트폴리오가 존재합니다.",
     },
+    "PORTFOLIO_MISSING_REQUIRED_FIELD": {
+        "message": "Required field is missing",
+        "userMessage": "필수 입력값이 누락되었습니다.",
+    },
+    "PORTFOLIO_INVALID_URL": {
+        "message": "Invalid URL format",
+        "userMessage": "올바르지 않은 URL 형식입니다.",
+    },
+    "PORTFOLIO_INVALID_PHONE": {
+        "message": "Invalid phone number format",
+        "userMessage": "올바르지 않은 전화번호 형식입니다.",
+    },
+    "PORTFOLIO_TOO_MANY_IMAGES": {
+        "message": "Too many gallery images",
+        "userMessage": "갤러리 이미지가 너무 많습니다.",
+    },
 
     # --- 채팅 (Chat) ---
     "CHAT_ROOM_NOT_FOUND": {

@@ -15,6 +15,8 @@ from app.models.portfolio import Portfolio
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
 from app.utils.pagination import normalize_pagination, apply_pagination, build_paginated_payload
+from app.utils.common import validate_url, validate_phone_number
+from app.utils.error_messages import get_error_message
 from app.services.portfolio_service import (
     get_portfolio_by_id,
     get_published_portfolios,
@@ -182,8 +184,95 @@ async def create_model(
     """
     user_id = current_user.get("sub")
     
+    # 필수 필드 검증
+    if not request.nickname:
+        error = get_error_message("PORTFOLIO_MISSING_REQUIRED_FIELD")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "PORTFOLIO_MISSING_REQUIRED_FIELD",
+                "message": error["message"],
+                "userMessage": "닉네임은 필수 입력값입니다.",
+            }
+        )
+    
+    if not request.registration_type:
+        error = get_error_message("PORTFOLIO_MISSING_REQUIRED_FIELD")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "PORTFOLIO_MISSING_REQUIRED_FIELD",
+                "message": error["message"],
+                "userMessage": "등록 유형은 필수 입력값입니다.",
+            }
+        )
+
+    # 갤러리 이미지 개수 검증 (모델은 최대 5개)
+    if request.sub_thumbnail_urls and len(request.sub_thumbnail_urls) > 5:
+        error = get_error_message("PORTFOLIO_TOO_MANY_IMAGES")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "PORTFOLIO_TOO_MANY_IMAGES",
+                "message": error["message"],
+                "userMessage": "갤러리 이미지는 최대 5개까지 등록할 수 있습니다.",
+            }
+        )
+
+    # URL 형식 검증
+    url_fields = {
+        "website_url": request.website_url,
+        "youtube_url": request.youtube_url,
+        "instagram_url": request.instagram_url,
+        "tiktok_url": request.tiktok_url,
+        "open_chat": request.open_chat,
+    }
+    for field_name, url_value in url_fields.items():
+        if url_value and not validate_url(url_value):
+            error = get_error_message("PORTFOLIO_INVALID_URL")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "PORTFOLIO_INVALID_URL",
+                    "message": error["message"],
+                    "userMessage": f"{field_name}의 URL 형식이 올바르지 않습니다.",
+                }
+            )
+    
+    # recent_lives URL 검증
+    if request.recent_lives:
+        for live in request.recent_lives:
+            if isinstance(live, dict) and "url" in live:
+                if live["url"] and not validate_url(live["url"]):
+                    error = get_error_message("PORTFOLIO_INVALID_URL")
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail={
+                            "error": "PORTFOLIO_INVALID_URL",
+                            "message": error["message"],
+                            "userMessage": "최근 라이브 방송 URL 형식이 올바르지 않습니다.",
+                        }
+                    )
+
+    # 전화번호 형식 검증
+    if request.contact and not validate_phone_number(request.contact):
+        error = get_error_message("PORTFOLIO_INVALID_PHONE")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "PORTFOLIO_INVALID_PHONE",
+                "message": error["message"],
+                "userMessage": "연락처 전화번호 형식이 올바르지 않습니다.",
+            }
+        )
+    
     # 포트폴리오 데이터 준비
     portfolio_data = request.model_dump(exclude_unset=True, by_alias=False)
+    
+    # websiteUrl을 youtube_url로 매핑 (프론트엔드 호환성)
+    if "website_url" in portfolio_data and portfolio_data["website_url"] and not portfolio_data.get("youtube_url"):
+        portfolio_data["youtube_url"] = portfolio_data["website_url"]
+        portfolio_data.pop("website_url", None)
     
     # 서비스를 통한 포트폴리오 생성
     portfolio = create_portfolio(db, user_id, portfolio_data)
@@ -206,7 +295,71 @@ async def update_model(
     user_id = current_user.get("sub")
     user_role = current_user.get("role")
     
+    # 갤러리 이미지 개수 검증 (모델은 최대 5개)
+    if request.sub_thumbnail_urls is not None and len(request.sub_thumbnail_urls) > 5:
+        error = get_error_message("PORTFOLIO_TOO_MANY_IMAGES")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "PORTFOLIO_TOO_MANY_IMAGES",
+                "message": error["message"],
+                "userMessage": "갤러리 이미지는 최대 5개까지 등록할 수 있습니다.",
+            }
+        )
+
+    # URL 형식 검증
+    url_fields = {
+        "website_url": request.website_url,
+        "youtube_url": request.youtube_url,
+        "instagram_url": request.instagram_url,
+        "tiktok_url": request.tiktok_url,
+        "open_chat": request.open_chat,
+    }
+    for field_name, url_value in url_fields.items():
+        if url_value is not None and url_value and not validate_url(url_value):
+            error = get_error_message("PORTFOLIO_INVALID_URL")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "PORTFOLIO_INVALID_URL",
+                    "message": error["message"],
+                    "userMessage": f"{field_name}의 URL 형식이 올바르지 않습니다.",
+                }
+            )
+    
+    # recent_lives URL 검증
+    if request.recent_lives is not None:
+        for live in request.recent_lives:
+            if isinstance(live, dict) and "url" in live:
+                if live["url"] and not validate_url(live["url"]):
+                    error = get_error_message("PORTFOLIO_INVALID_URL")
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail={
+                            "error": "PORTFOLIO_INVALID_URL",
+                            "message": error["message"],
+                            "userMessage": "최근 라이브 방송 URL 형식이 올바르지 않습니다.",
+                        }
+                    )
+
+    # 전화번호 형식 검증
+    if request.contact is not None and request.contact and not validate_phone_number(request.contact):
+        error = get_error_message("PORTFOLIO_INVALID_PHONE")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "PORTFOLIO_INVALID_PHONE",
+                "message": error["message"],
+                "userMessage": "연락처 전화번호 형식이 올바르지 않습니다.",
+            }
+        )
+    
     update_data = request.model_dump(exclude_unset=True, by_alias=False)
+    
+    # websiteUrl을 youtube_url로 매핑 (프론트엔드 호환성)
+    if "website_url" in update_data and update_data["website_url"] and not update_data.get("youtube_url"):
+        update_data["youtube_url"] = update_data["website_url"]
+        update_data.pop("website_url", None)
     
     # 서비스를 통한 포트폴리오 수정
     portfolio = update_portfolio(db, model_id, user_id, user_role, update_data)
