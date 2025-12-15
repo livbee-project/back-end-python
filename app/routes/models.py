@@ -155,7 +155,7 @@ async def get_model_list(
     items = [portfolio_to_model_dict(p) for p in portfolios]
     
     # 페이지네이션 응답 구성
-    return success_response(build_paginated_payload(items, page, limit, total_items))
+    return success_response(build_paginated_payload(items, total_items, page, limit))
 
 
 @router.get("/{model_id}")
