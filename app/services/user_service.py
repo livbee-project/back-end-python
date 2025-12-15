@@ -86,26 +86,52 @@ def create_user(
         생성된 사용자 인스턴스
     
     Raises:
-        HTTPException: 이미 존재하는 이메일인 경우
+        HTTPException: 이미 존재하는 이메일인 경우 (동일 역할 재가입)
     """
     # 중복 이메일 확인
     existing_user = get_user_by_email(db, email)
     if existing_user:
         from fastapi import HTTPException, status
         from app.utils.error_messages import get_error_message
-        error = get_error_message("DUPLICATE")
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "error": "DUPLICATE",
-                "message": error["message"],
-                "userMessage": error["userMessage"],
-            }
-        )
+
+        # 요청된 역할이 brand/showhost 인지 플래그로 계산
+        requested_is_brand = role == UserRole.BRAND
+        requested_is_showhost = role == UserRole.SHOWHOST
+
+        # 이미 해당 역할을 가지고 있는 경우 -> 중복 가입으로 처리
+        if (
+            (requested_is_brand and getattr(existing_user, "is_brand", False))
+            or (requested_is_showhost and getattr(existing_user, "is_showhost", False))
+        ):
+            error = get_error_message("DUPLICATE")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "DUPLICATE",
+                    "message": error["message"],
+                    # 동일 이메일로 이미 해당 역할로 가입된 경우
+                    "userMessage": "이미 해당 역할로 가입된 이메일입니다.",
+                }
+            )
+
+        # 아직 없는 역할이라면, 새 계정 생성 대신 기존 계정에 역할을 추가
+        if requested_is_brand:
+            existing_user.is_brand = True
+        if requested_is_showhost:
+            existing_user.is_showhost = True
+
+        # 기존 role 필드는 그대로 두되, 필요 시 이후 단계에서 정리
+        db.flush()
+        db.refresh(existing_user)
+        return existing_user
     
     # 비밀번호 해시
     hashed_password = get_password_hash(password)
     
+    # 역할 플래그 계산
+    is_brand = role == UserRole.BRAND
+    is_showhost = role == UserRole.SHOWHOST
+
     # 사용자 데이터 생성
     user_data = {
         "id": str(uuid.uuid4()),
@@ -114,6 +140,8 @@ def create_user(
         "password": hashed_password,
         "role": role.value,
         "phone": phone.strip() if phone and phone.strip() else None,
+        "is_brand": is_brand,
+        "is_showhost": is_showhost,
     }
     
     # 역할에 따라 해당 역할 전용 정보 추가
@@ -185,10 +213,15 @@ def authenticate_user(
         )
     
     # 역할 확인
-    user_role_value = user.role.value if hasattr(user.role, 'value') else str(user.role)
+    user_role_value = user.role.value if hasattr(user.role, "value") else str(user.role)
     if requested_role:
-        requested_role_value = requested_role.value if hasattr(requested_role, 'value') else str(requested_role)
-        if user_role_value != requested_role_value:
+        requested_role_value = requested_role.value if hasattr(requested_role, "value") else str(requested_role)
+
+        # 다중 역할 플래그 기반으로 권한 확인
+        has_brand = getattr(user, "is_brand", False)
+        has_showhost = getattr(user, "is_showhost", False)
+
+        if requested_role_value == UserRole.BRAND.value and not has_brand:
             from fastapi import HTTPException, status
             from app.utils.error_messages import get_error_message
             error = get_error_message("ROLE_MISMATCH")
@@ -198,7 +231,19 @@ def authenticate_user(
                     "error": "ROLE_MISMATCH",
                     "message": error["message"],
                     "userMessage": error["userMessage"],
-                }
+                },
+            )
+        if requested_role_value == UserRole.SHOWHOST.value and not has_showhost:
+            from fastapi import HTTPException, status
+            from app.utils.error_messages import get_error_message
+            error = get_error_message("ROLE_MISMATCH")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "ROLE_MISMATCH",
+                    "message": error["message"],
+                    "userMessage": error["userMessage"],
+                },
             )
     
     # JWT 토큰 생성
@@ -216,9 +261,13 @@ def authenticate_user(
             }
         )
     
-    token = create_access_token(
-        data={"sub": user.id, "role": user_role_value},
-    )
+    token_data = {
+        "sub": user.id,
+        "role": user_role_value,
+        "isBrand": bool(getattr(user, "is_brand", False)),
+        "isShowhost": bool(getattr(user, "is_showhost", False)),
+    }
+    token = create_access_token(data=token_data)
     
     return user, token
 

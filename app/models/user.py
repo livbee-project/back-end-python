@@ -2,7 +2,7 @@
 User 모델
 사용자 정보 관리
 """
-from sqlalchemy import Column, String, Enum as SQLEnum, DateTime
+from sqlalchemy import Column, String, Enum as SQLEnum, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -29,6 +29,13 @@ class User(Base):
 
     # 공통 선택 정보
     phone = Column(String, nullable=True)
+
+    # 역할 플래그 (다중 역할 지원용)
+    # - is_brand: 브랜드 기능 사용 가능 여부
+    # - is_showhost: 쇼호스트 기능 사용 가능 여부
+    # 기존 데이터 호환을 위해 기본값 False, 서버 기본값도 false로 설정
+    is_brand = Column(Boolean, nullable=False, server_default="false")
+    is_showhost = Column(Boolean, nullable=False, server_default="false")
 
     # 'brand' 역할 전용 정보
     brand_name = Column(String, nullable=True)

@@ -31,6 +31,8 @@ def require_role(*allowed_roles: str):
             HTTPException: 역할이 없거나 허용되지 않은 경우
         """
         user_role = user.get("role")
+        is_brand = user.get("isBrand")
+        is_showhost = user.get("isShowhost")
         
         if not user_role:
             error = get_error_message("AUTH_NO_ROLE")
@@ -46,7 +48,14 @@ def require_role(*allowed_roles: str):
         # admin은 모든 역할 허용
         if user_role == "admin":
             return user
-        
+
+        # 다중 역할 플래그 기반 체크 (토큰에 isBrand / isShowhost 포함)
+        if "brand" in allowed_roles and is_brand:
+            return user
+        if "showhost" in allowed_roles and is_showhost:
+            return user
+
+        # 플래그 정보가 없거나, 과거 토큰 등과의 호환성을 위해 role 값도 함께 검사
         if user_role not in allowed_roles:
             error = get_error_message("AUTH_FORBIDDEN_ROLE")
             raise HTTPException(
@@ -55,7 +64,7 @@ def require_role(*allowed_roles: str):
                     "error": "AUTH_FORBIDDEN_ROLE",
                     "message": error["message"],
                     "userMessage": error["userMessage"],
-                }
+                },
             )
         
         return user

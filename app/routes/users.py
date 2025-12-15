@@ -158,7 +158,9 @@ async def login(
             "id": user.id,
             "name": user.name,
             "email": user.email,
-            "role": user_role_value
+            "role": user_role_value,
+            "isBrand": bool(getattr(user, "is_brand", False)),
+            "isShowhost": bool(getattr(user, "is_showhost", False)),
         }
     })
 
@@ -189,5 +191,7 @@ async def get_me(
         "phone": user.phone,
         "maskedPhone": mask_phone(user.phone),
         "normalizedPhone": normalized_phone,
+        "isBrand": bool(getattr(user, "is_brand", False)),
+        "isShowhost": bool(getattr(user, "is_showhost", False)),
     })
 
