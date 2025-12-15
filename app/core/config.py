@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     NODE_ENV: str = "development"
     
+    # CORS 설정
+    CORS_ORIGINS: Optional[str] = None  # 쉼표로 구분된 origin 목록 (예: "http://localhost:5173,https://dev.livbee.co.kr")
+    
     class Config:
         env_file = ".env"
         case_sensitive = True

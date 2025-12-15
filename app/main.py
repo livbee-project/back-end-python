@@ -121,12 +121,44 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 # CORS 설정
+def get_cors_origins():
+    """
+    CORS 허용 origin 목록 반환
+    환경변수 CORS_ORIGINS가 설정되어 있으면 해당 값 사용
+    없으면 개발 환경에서는 localhost와 dev 도메인 허용
+    """
+    if settings.CORS_ORIGINS:
+        # 환경변수에서 쉼표로 구분된 origin 목록 파싱
+        origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",")]
+        logger.info(f"✅ CORS origins from env: {origins}")
+        return origins
+    
+    # 기본값: 개발 환경용 origin 목록
+    default_origins = [
+        "http://localhost:5173",  # Vite 기본 포트
+        "http://localhost:3000",  # React 기본 포트
+        "http://localhost:5174",  # 추가 개발 포트
+        "https://dev-api.livbee.co.kr",  # 개발 API 서버
+        "https://dev.livbee.co.kr",  # 개발 프론트엔드
+    ]
+    
+    # 프로덕션 환경인 경우 프로덕션 도메인 추가
+    if settings.ENVIRONMENT == "production":
+        default_origins.extend([
+            "https://api.livbee.co.kr",
+            "https://livbee.co.kr",
+            "https://www.livbee.co.kr",
+        ])
+    
+    logger.info(f"✅ CORS origins (default): {default_origins}")
+    return default_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 프로덕션에서는 특정 도메인으로 제한
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 
 

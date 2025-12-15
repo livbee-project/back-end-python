@@ -418,6 +418,6 @@ async def get_portfolio(
     if portfolio.public_scope != "전체공개" or portfolio.status != "published":
         return fail_response("NOT_FOUND", status.HTTP_404_NOT_FOUND)
 
-    data = model_to_dict(portfolio)
+    data = model_to_dict(portfolio, to_camel_case=True)
     return success_response({"data": data})
 
