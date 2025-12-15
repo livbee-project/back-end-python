@@ -113,21 +113,22 @@ def create_user(
         "email": email.lower().strip(),
         "password": hashed_password,
         "role": role.value,
-        "phone": phone.strip() if phone else None,
+        "phone": phone.strip() if phone and phone.strip() else None,
     }
     
     # 역할에 따라 해당 역할 전용 정보 추가
     if role == UserRole.BRAND:
-        user_data["brand_name"] = brand_name.strip() if brand_name else None
-        user_data["company_name"] = company_name.strip() if company_name else None
-        user_data["business_number"] = business_number.strip() if business_number else None
+        user_data["brand_name"] = brand_name.strip() if brand_name and brand_name.strip() else None
+        user_data["company_name"] = company_name.strip() if company_name and company_name.strip() else None
+        user_data["business_number"] = business_number.strip() if business_number and business_number.strip() else None
     else:  # showhost
-        user_data["nickname"] = nickname.strip() if nickname else None
-        user_data["sns_link"] = sns_link.strip() if sns_link else None
-        user_data["introduction"] = introduction.strip() if introduction else None
+        user_data["nickname"] = nickname.strip() if nickname and nickname.strip() else None
+        user_data["sns_link"] = sns_link.strip() if sns_link and sns_link.strip() else None
+        user_data["introduction"] = introduction.strip() if introduction and introduction.strip() else None
     
     user = User(**user_data)
     db.add(user)
+    db.flush()  # ID 생성 등을 위해 flush
     db.refresh(user)
     
     return user

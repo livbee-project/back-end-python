@@ -86,20 +86,30 @@ async def signup(
         )
 
     # 서비스를 통한 사용자 생성
-    user = create_user(
-        db,
-        name=name,
-        email=email,
-        password=password,
-        role=role,
-        phone=request.phone,
-        brand_name=request.brand_name,
-        company_name=request.company_name,
-        business_number=request.business_number,
-        nickname=request.nickname,
-        sns_link=request.sns_link,
-        introduction=request.introduction
-    )
+    try:
+        user = create_user(
+            db,
+            name=name,
+            email=email,
+            password=password,
+            role=role,
+            phone=request.phone,
+            brand_name=request.brand_name,
+            company_name=request.company_name,
+            business_number=request.business_number,
+            nickname=request.nickname,
+            sns_link=request.sns_link,
+            introduction=request.introduction
+        )
+    except HTTPException:
+        # HTTPException은 그대로 전파 (중복 이메일 등)
+        db.rollback()
+        raise
+    except Exception as e:
+        # 예상치 못한 에러 처리
+        db.rollback()
+        logger.error(f"회원가입 중 오류 발생: {str(e)}", exc_info=True)
+        return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return success_response(
         {"userId": user.id, "role": user.role},
