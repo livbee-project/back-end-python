@@ -28,6 +28,7 @@ from app.models.user import User, UserRole
 from app.models.campaign import Campaign
 from app.models.application import Application, ApplicationStatus
 from app.models.portfolio import Portfolio
+from app.models.model import Model
 from app.models.chat import ChatRoom, ChatParticipant, ChatMessage, ChatMessageType, ChatRoomStatus
 from app.services.chat_service import ensure_chat_room
 from app.utils.response import success_response, fail_response
@@ -164,9 +165,17 @@ def _application_payload(
     if not application:
         return None
     
-    # 포트폴리오 정보 조회 (profile_ref가 포트폴리오 ID인 경우)
+    # 포트폴리오/모델 정보 조회
     portfolio_title = None
-    if application.profile_ref:
+    if application.portfolio_id:
+        portfolio = db.query(Portfolio).filter(Portfolio.id == application.portfolio_id).first()
+        if portfolio:
+            portfolio_title = portfolio.nickname or portfolio.one_line_intro
+    elif application.model_id:
+        model = db.query(Model).filter(Model.id == application.model_id).first()
+        if model:
+            portfolio_title = model.nickname or model.one_line_intro
+    elif application.profile_ref:  # 하위 호환성
         portfolio = db.query(Portfolio).filter(Portfolio.id == application.profile_ref).first()
         if portfolio:
             portfolio_title = portfolio.nickname or portfolio.one_line_intro

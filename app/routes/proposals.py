@@ -5,7 +5,7 @@ Proposal 라우트
 from typing import Optional
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.core.database import get_db
@@ -13,6 +13,7 @@ from app.middleware.auth import get_current_user
 from app.middleware.role import require_role
 from app.models.proposal import Proposal, ProposalStatus
 from app.models.portfolio import Portfolio
+from app.models.model import Model
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
 from app.utils.common import format_date
@@ -28,7 +29,8 @@ router = APIRouter(prefix="/proposals", tags=["proposals"])
 
 
 class ProposalCreate(BaseModel):
-    target_portfolio_id: str = Field(..., alias="targetPortfolioId")
+    target_portfolio_id: Optional[str] = Field(None, alias="targetPortfolioId")
+    target_model_id: Optional[str] = Field(None, alias="targetModelId")
     brand_name: str = Field(..., alias="brandName")
     fee: Optional[int] = None
     is_fee_negotiable: bool = Field(False, alias="isFeeNegotiable")
@@ -52,11 +54,23 @@ async def create_proposal(
     쇼호스트에게 새로운 섭외 제안 생성
     """
     proposer_id = current_user.get("sub")
+    
+    # 포트폴리오 ID 또는 모델 ID 중 하나는 필수
+    if not request.target_portfolio_id and not request.target_model_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "VALIDATION_ERROR",
+                "message": "포트폴리오 ID 또는 모델 ID 중 하나는 필수입니다.",
+                "userMessage": "포트폴리오 또는 모델을 선택해주세요.",
+            }
+        )
 
     # 서비스를 통한 제안 생성
     proposal = create_proposal(
         db,
         target_portfolio_id=request.target_portfolio_id,
+        target_model_id=request.target_model_id,
         proposer_id=proposer_id,
         brand_name=request.brand_name,
         shooting_date=request.shooting_date,
@@ -105,6 +119,7 @@ async def get_sent_proposals(
             "recipient": {
                 "name": showhost.name if showhost else "알 수 없음",
                 "portfolioId": p.target_portfolio_id,
+                "modelId": p.target_model_id,
             },
             "content": p.content,
             "status": p.status.value,

@@ -1,6 +1,7 @@
 # Models module
 from app.models.user import User
 from app.models.portfolio import Portfolio
+from app.models.model import Model
 from app.models.campaign import Campaign, ProductItem, Question
 from app.models.application import Application
 from app.models.proposal import Proposal
@@ -19,6 +20,7 @@ from app.models.chat import (
 __all__ = [
     "User",
     "Portfolio",
+    "Model",
     "Campaign",
     "ProductItem",
     "Question",

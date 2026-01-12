@@ -27,7 +27,9 @@ class Application(Base):
     campaign_id = Column(String, ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
-    profile_ref = Column(String, nullable=True)  # 포트폴리오 링크 or id
+    profile_ref = Column(String, nullable=True)  # 포트폴리오 링크 or id (하위 호환성 유지)
+    portfolio_id = Column(String, ForeignKey("portfolios.id", ondelete="SET NULL"), nullable=True, index=True)
+    model_id = Column(String, ForeignKey("models.id", ondelete="SET NULL"), nullable=True, index=True)
     message = Column(String, nullable=True)
     status = Column(SQLEnum(ApplicationStatus), default=ApplicationStatus.SUBMITTED, index=True)
     available_date = Column(Date, nullable=True)
@@ -40,6 +42,8 @@ class Application(Base):
     # 관계
     campaign = relationship("Campaign", back_populates="applications")
     user = relationship("User", back_populates="applications")
+    portfolio = relationship("Portfolio", foreign_keys=[portfolio_id])
+    model = relationship("Model", foreign_keys=[model_id])
     chat_room = relationship("ChatRoom", back_populates="application", uselist=False)
 
     # 제약 조건: 중복 지원 방지

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 from app.models.proposal import Proposal, ProposalStatus
 from app.models.portfolio import Portfolio
+from app.models.model import Model
 from app.models.user import User
 from app.utils.db_helpers import get_or_404, require_ownership_or_admin
 import uuid
@@ -14,11 +15,12 @@ import uuid
 
 def create_proposal(
     db: Session,
-    target_portfolio_id: str,
     proposer_id: str,
     brand_name: str,
     shooting_date: date,
     reply_deadline: date,
+    target_portfolio_id: Optional[str] = None,
+    target_model_id: Optional[str] = None,
     fee: Optional[int] = None,
     is_fee_negotiable: bool = False,
     shooting_time: Optional[str] = None,
@@ -30,11 +32,12 @@ def create_proposal(
     
     Args:
         db: 데이터베이스 세션
-        target_portfolio_id: 대상 포트폴리오 ID
         proposer_id: 제안자 ID
         brand_name: 브랜드명
         shooting_date: 촬영일
         reply_deadline: 답변 마감일
+        target_portfolio_id: 대상 포트폴리오 ID (선택)
+        target_model_id: 대상 모델 ID (선택)
         fee: 수수료
         is_fee_negotiable: 수수료 협상 가능 여부
         shooting_time: 촬영 시간
@@ -45,22 +48,45 @@ def create_proposal(
         생성된 제안 인스턴스
     
     Raises:
-        HTTPException: 포트폴리오를 찾을 수 없는 경우
+        HTTPException: 포트폴리오/모델을 찾을 수 없는 경우
     """
-    # 포트폴리오 확인
-    portfolio = get_or_404(
-        db,
-        Portfolio,
-        lambda q: q.filter(Portfolio.id == target_portfolio_id),
-        error_key="NOT_FOUND"
-    )
+    target_showhost_id = None
+    
+    # 포트폴리오 또는 모델 확인
+    if target_portfolio_id:
+        portfolio = get_or_404(
+            db,
+            Portfolio,
+            lambda q: q.filter(Portfolio.id == target_portfolio_id),
+            error_key="NOT_FOUND"
+        )
+        target_showhost_id = portfolio.user_id
+    elif target_model_id:
+        model = get_or_404(
+            db,
+            Model,
+            lambda q: q.filter(Model.id == target_model_id),
+            error_key="NOT_FOUND"
+        )
+        target_showhost_id = model.user_id
+    else:
+        from fastapi import HTTPException, status
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": "VALIDATION_ERROR",
+                "message": "포트폴리오 ID 또는 모델 ID 중 하나는 필수입니다.",
+                "userMessage": "포트폴리오 또는 모델을 선택해주세요.",
+            }
+        )
     
     # 제안 생성
     proposal = Proposal(
         id=str(uuid.uuid4()),
         target_portfolio_id=target_portfolio_id,
+        target_model_id=target_model_id,
         proposer_id=proposer_id,
-        target_showhost_id=portfolio.user_id,
+        target_showhost_id=target_showhost_id,
         brand_name=brand_name,
         fee=fee,
         is_fee_negotiable=is_fee_negotiable,

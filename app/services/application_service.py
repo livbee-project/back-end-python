@@ -9,6 +9,7 @@ from app.models.application import Application, ApplicationStatus
 from app.models.campaign import Campaign
 from app.models.chat import ChatRoom, ChatMessage, ChatMessageType
 from app.models.portfolio import Portfolio
+from app.models.model import Model
 from app.models.user import User
 from app.services.chat_service import ensure_chat_room
 from app.utils.db_helpers import get_or_404, require_ownership_or_admin
@@ -21,6 +22,8 @@ def create_application(
     campaign_id: str,
     user_id: str,
     profile_ref: Optional[str] = None,
+    portfolio_id: Optional[str] = None,
+    model_id: Optional[str] = None,
     message: Optional[str] = None,
     available_date: Optional[date] = None,
     available_time: Optional[str] = None,
@@ -87,7 +90,9 @@ def create_application(
         id=str(uuid.uuid4()),
         campaign_id=campaign_id,
         user_id=user_id,
-        profile_ref=profile_ref,
+        profile_ref=profile_ref,  # 하위 호환성 유지
+        portfolio_id=portfolio_id,
+        model_id=model_id,
         message=message,
         available_date=available_date,
         available_time=available_time,

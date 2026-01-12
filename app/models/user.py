@@ -53,6 +53,7 @@ class User(Base):
 
     # 관계
     portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
+    models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
     campaigns = relationship("Campaign", back_populates="created_by_user", foreign_keys="Campaign.created_by")
     applications = relationship("Application", back_populates="user", cascade="all, delete-orphan")
     proposals_sent = relationship("Proposal", back_populates="proposer", foreign_keys="Proposal.proposer_id")

@@ -274,3 +274,10 @@ db_data/
 
 # 4. Logs
 *.log
+
+# 5. Documentation and Guides (개인 작업 가이드 파일)
+docs/*.md
+!docs/README.md
+
+# 6. Antigravity Rules (AI 어시스턴트 설정 파일)
+.antigravity/

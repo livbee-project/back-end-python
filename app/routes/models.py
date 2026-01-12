@@ -1,31 +1,28 @@
 """
 Models 라우트
-모델 관리 (포트폴리오와 동일한 데이터, 다른 엔드포인트명)
-프론트엔드 호환성을 위해 /models 엔드포인트 제공
+모델 관리
 """
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
 from app.core.database import get_db
 from app.middleware.auth import get_current_user, get_optional_user
 from app.middleware.role import require_role
-from app.models.portfolio import Portfolio
+from app.models.model import Model
 from app.models.user import User, UserRole
 from app.utils.response import success_response, fail_response
 from app.utils.pagination import normalize_pagination, apply_pagination, build_paginated_payload
 from app.utils.common import validate_url, validate_phone_number
 from app.utils.error_messages import get_error_message
-from app.services.portfolio_service import (
-    get_portfolio_by_id,
-    get_published_portfolios,
-    check_user_has_portfolio,
-    create_portfolio,
-    update_portfolio,
-    delete_portfolio
+from app.services.model_service import (
+    get_model_by_id,
+    get_published_models,
+    check_user_has_model,
+    create_model,
+    update_model,
+    delete_model
 )
-import uuid
 
 router = APIRouter(prefix="/models", tags=["models"])
 
@@ -58,7 +55,6 @@ class ModelCreate(BaseModel):
     registration_type: Optional[str] = Field(None, alias="registrationType")
     public_scope: Optional[str] = Field("전체공개", alias="publicScope")
     is_receiving_offers: Optional[bool] = Field(True, alias="isReceivingOffers")
-    recent_lives: Optional[List[dict]] = Field(None, alias="recentLives")
     attached_file_url: Optional[str] = Field(None, alias="attachedFileUrl")
 
     class Config:
@@ -93,45 +89,44 @@ class ModelUpdate(BaseModel):
     registration_type: Optional[str] = Field(None, alias="registrationType")
     public_scope: Optional[str] = Field(None, alias="publicScope")
     is_receiving_offers: Optional[bool] = Field(None, alias="isReceivingOffers")
-    recent_lives: Optional[List[dict]] = Field(None, alias="recentLives")
     attached_file_url: Optional[str] = Field(None, alias="attachedFileUrl")
 
     class Config:
         populate_by_name = True
 
 
-def portfolio_to_model_dict(portfolio: Portfolio) -> dict:
-    """Portfolio 객체를 모델 응답 형식으로 변환"""
+def model_to_dict(model: Model) -> dict:
+    """Model 객체를 응답 형식으로 변환"""
     return {
-        "id": portfolio.id,
-        "user": portfolio.user_id,
-        "nickname": portfolio.nickname,
-        "oneLineIntro": portfolio.one_line_intro,
-        "detailedIntro": portfolio.detailed_intro,
-        "experienceYears": portfolio.experience_years,
-        "age": portfolio.age,
-        "isAgePublic": portfolio.is_age_public,
-        "mainThumbnailUrl": portfolio.main_thumbnail_url,
-        "backgroundImageUrl": portfolio.background_image_url,
-        "subThumbnailUrls": portfolio.sub_thumbnail_urls or [],
-        "status": portfolio.status,
-        "detailedRegion": portfolio.detailed_region,
-        "gender": portfolio.gender,
-        "height": portfolio.height,
-        "weight": portfolio.weight,
-        "topSize": portfolio.top_size,
-        "bottomSize": portfolio.bottom_size,
-        "shoeSize": portfolio.shoe_size,
-        "isSizingPublic": portfolio.is_sizing_public,
-        "websiteUrl": portfolio.website_url,
-        "instagramUrl": portfolio.instagram_url,
-        "youtubeUrl": portfolio.youtube_url,
-        "tiktokUrl": portfolio.tiktok_url,
-        "publicScope": portfolio.public_scope,
-        "isReceivingOffers": portfolio.is_receiving_offers,
-        "attachedFileUrl": portfolio.attached_file_url,
-        "createdAt": portfolio.created_at.isoformat() if portfolio.created_at else None,
-        "updatedAt": portfolio.updated_at.isoformat() if portfolio.updated_at else None,
+        "id": model.id,
+        "user": model.user_id,
+        "nickname": model.nickname,
+        "oneLineIntro": model.one_line_intro,
+        "detailedIntro": model.detailed_intro,
+        "experienceYears": model.experience_years,
+        "age": model.age,
+        "isAgePublic": model.is_age_public,
+        "mainThumbnailUrl": model.main_thumbnail_url,
+        "backgroundImageUrl": model.background_image_url,
+        "subThumbnailUrls": model.sub_thumbnail_urls or [],
+        "status": model.status,
+        "detailedRegion": model.detailed_region,
+        "gender": model.gender,
+        "height": model.height,
+        "weight": model.weight,
+        "topSize": model.top_size,
+        "bottomSize": model.bottom_size,
+        "shoeSize": model.shoe_size,
+        "isSizingPublic": model.is_sizing_public,
+        "websiteUrl": model.website_url,
+        "instagramUrl": model.instagram_url,
+        "youtubeUrl": model.youtube_url,
+        "tiktokUrl": model.tiktok_url,
+        "publicScope": model.public_scope,
+        "isReceivingOffers": model.is_receiving_offers,
+        "attachedFileUrl": model.attached_file_url,
+        "createdAt": model.created_at.isoformat() if model.created_at else None,
+        "updatedAt": model.updated_at.isoformat() if model.updated_at else None,
     }
 
 
@@ -143,43 +138,42 @@ async def get_model_list(
 ):
     """
     모델 목록 조회 (페이지네이션)
-    포트폴리오 데이터를 모델 형식으로 반환
     """
     # 페이지네이션 정규화
     page, limit = normalize_pagination(page, limit)
     
-    # 서비스를 통한 published 포트폴리오 목록 조회
-    portfolios, total_items = get_published_portfolios(db, page, limit)
+    # 서비스를 통한 published 모델 목록 조회
+    models, total_items = get_published_models(db, page, limit)
     
     # 응답 데이터 변환
-    items = [portfolio_to_model_dict(p) for p in portfolios]
+    items = [model_to_dict(m) for m in models]
     
     # 페이지네이션 응답 구성
     return success_response(build_paginated_payload(items, total_items, page, limit))
 
 
 @router.get("/{model_id}")
-async def get_model(
+async def get_model_detail(
     model_id: str,
     db: Session = Depends(get_db)
 ):
     """
     특정 모델 상세 정보 조회
     """
-    portfolio = get_portfolio_by_id(db, model_id)
+    model = get_model_by_id(db, model_id)
     
-    data = portfolio_to_model_dict(portfolio)
+    data = model_to_dict(model)
     return success_response({"data": data})
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def create_model(
+async def create_model_endpoint(
     request: ModelCreate,
     current_user: dict = Depends(require_role(UserRole.SHOWHOST.value)),
     db: Session = Depends(get_db)
 ):
     """
-    새 모델 등록 (포트폴리오 생성)
+    새 모델 등록
     showhost 역할만 가능
     """
     user_id = current_user.get("sub")
@@ -238,21 +232,6 @@ async def create_model(
                     "userMessage": f"{field_name}의 URL 형식이 올바르지 않습니다.",
                 }
             )
-    
-    # recent_lives URL 검증
-    if request.recent_lives:
-        for live in request.recent_lives:
-            if isinstance(live, dict) and "url" in live:
-                if live["url"] and not validate_url(live["url"]):
-                    error = get_error_message("PORTFOLIO_INVALID_URL")
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={
-                            "error": "PORTFOLIO_INVALID_URL",
-                            "message": error["message"],
-                            "userMessage": "최근 라이브 방송 URL 형식이 올바르지 않습니다.",
-                        }
-                    )
 
     # 전화번호 형식 검증
     if request.contact and not validate_phone_number(request.contact):
@@ -266,28 +245,27 @@ async def create_model(
             }
         )
     
-    # 포트폴리오 데이터 준비
-    portfolio_data = request.model_dump(exclude_unset=True, by_alias=False)
+    # 모델 데이터 준비
+    model_data = request.model_dump(exclude_unset=True, by_alias=False)
     
     # websiteUrl을 youtube_url로 매핑 (프론트엔드 호환성)
-    if "website_url" in portfolio_data and portfolio_data["website_url"] and not portfolio_data.get("youtube_url"):
-        portfolio_data["youtube_url"] = portfolio_data["website_url"]
-        portfolio_data["website_url"] = None
+    if "website_url" in model_data and model_data["website_url"] and not model_data.get("youtube_url"):
+        model_data["youtube_url"] = model_data["website_url"]
+        model_data["website_url"] = None
     
-    # Portfolio 모델에 없는 필드 제거 (안전성)
-    from app.models.portfolio import Portfolio
-    portfolio_fields = {col.name for col in Portfolio.__table__.columns}
-    portfolio_data = {k: v for k, v in portfolio_data.items() if k in portfolio_fields}
+    # Model 모델에 있는 필드만 유지 (안전성)
+    model_fields = {col.name for col in Model.__table__.columns}
+    model_data = {k: v for k, v in model_data.items() if k in model_fields}
     
-    # 서비스를 통한 포트폴리오 생성
-    portfolio = create_portfolio(db, user_id, portfolio_data)
+    # 서비스를 통한 모델 생성
+    model = create_model(db, user_id, model_data)
     
-    data = portfolio_to_model_dict(portfolio)
+    data = model_to_dict(model)
     return success_response({"data": data}, status_code=status.HTTP_201_CREATED)
 
 
 @router.put("/{model_id}")
-async def update_model(
+async def update_model_endpoint(
     model_id: str,
     request: ModelUpdate,
     current_user: dict = Depends(require_role(UserRole.SHOWHOST.value)),
@@ -295,7 +273,7 @@ async def update_model(
 ):
     """
     모델 정보 수정
-    showhost 역할만 가능, 본인 포트폴리오만 수정 가능
+    showhost 역할만 가능, 본인 모델만 수정 가능
     """
     user_id = current_user.get("sub")
     user_role = current_user.get("role")
@@ -331,21 +309,6 @@ async def update_model(
                     "userMessage": f"{field_name}의 URL 형식이 올바르지 않습니다.",
                 }
             )
-    
-    # recent_lives URL 검증
-    if request.recent_lives is not None:
-        for live in request.recent_lives:
-            if isinstance(live, dict) and "url" in live:
-                if live["url"] and not validate_url(live["url"]):
-                    error = get_error_message("PORTFOLIO_INVALID_URL")
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail={
-                            "error": "PORTFOLIO_INVALID_URL",
-                            "message": error["message"],
-                            "userMessage": "최근 라이브 방송 URL 형식이 올바르지 않습니다.",
-                        }
-                    )
 
     # 전화번호 형식 검증
     if request.contact is not None and request.contact and not validate_phone_number(request.contact):
@@ -366,33 +329,31 @@ async def update_model(
         update_data["youtube_url"] = update_data["website_url"]
         update_data["website_url"] = None
     
-    # Portfolio 모델에 있는 필드만 업데이트 (안전성)
-    from app.models.portfolio import Portfolio
-    portfolio_fields = {col.name for col in Portfolio.__table__.columns}
-    update_data = {k: v for k, v in update_data.items() if k in portfolio_fields}
+    # Model 모델에 있는 필드만 업데이트 (안전성)
+    model_fields = {col.name for col in Model.__table__.columns}
+    update_data = {k: v for k, v in update_data.items() if k in model_fields}
     
-    # 서비스를 통한 포트폴리오 수정
-    portfolio = update_portfolio(db, model_id, user_id, user_role, update_data)
+    # 서비스를 통한 모델 수정
+    model = update_model(db, model_id, user_id, user_role, update_data)
     
-    data = portfolio_to_model_dict(portfolio)
+    data = model_to_dict(model)
     return success_response({"data": data})
 
 
 @router.delete("/{model_id}")
-async def delete_model(
+async def delete_model_endpoint(
     model_id: str,
     current_user: dict = Depends(require_role(UserRole.SHOWHOST.value)),
     db: Session = Depends(get_db)
 ):
     """
     모델 삭제
-    showhost 역할만 가능, 본인 포트폴리오만 삭제 가능
+    showhost 역할만 가능, 본인 모델만 삭제 가능
     """
     user_id = current_user.get("sub")
     user_role = current_user.get("role")
     
-    # 서비스를 통한 포트폴리오 삭제
-    delete_portfolio(db, model_id, user_id, user_role)
+    # 서비스를 통한 모델 삭제
+    delete_model(db, model_id, user_id, user_role)
     
     return success_response({"message": "모델이 성공적으로 삭제되었습니다."})
-

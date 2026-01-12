@@ -27,7 +27,8 @@ class Proposal(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
     # 제안의 주체 및 대상
-    target_portfolio_id = Column(String, ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False, index=True)
+    target_portfolio_id = Column(String, ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=True, index=True)
+    target_model_id = Column(String, ForeignKey("models.id", ondelete="CASCADE"), nullable=True, index=True)
     proposer_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     target_showhost_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
@@ -50,6 +51,7 @@ class Proposal(Base):
 
     # 관계
     target_portfolio = relationship("Portfolio", back_populates="proposals")
+    target_model = relationship("Model", back_populates="proposals")
     proposer = relationship("User", back_populates="proposals_sent", foreign_keys=[proposer_id])
     target_showhost = relationship("User", back_populates="proposals_received", foreign_keys=[target_showhost_id])
 

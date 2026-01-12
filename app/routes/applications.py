@@ -16,6 +16,7 @@ from app.models.campaign import Campaign
 from app.models.user import User, UserRole
 from app.models.chat import ChatRoom, ChatMessage, ChatMessageType
 from app.models.portfolio import Portfolio
+from app.models.model import Model
 from app.utils.response import success_response, fail_response
 from app.utils.common import model_to_dict, models_to_list
 from app.services.chat_service import ensure_chat_room
@@ -32,7 +33,9 @@ router = APIRouter(prefix="/applications", tags=["applications"])
 
 class ApplicationCreate(BaseModel):
     campaign_id: str = Field(..., alias="campaignId")
-    profile_ref: Optional[str] = Field(None, alias="portfolioId")
+    profile_ref: Optional[str] = Field(None, alias="portfolioId")  # 하위 호환성 유지
+    portfolio_id: Optional[str] = Field(None, alias="portfolioId")
+    model_id: Optional[str] = Field(None, alias="modelId")
     message: Optional[str] = None
     available_date: Optional[date] = Field(None, alias="availableDate")
     available_time: Optional[str] = Field(None, alias="availableTime")
@@ -80,12 +83,23 @@ async def create_application(
     """
     user_id = current_user.get("sub")
 
+    # portfolio_id 또는 model_id 우선 사용, 없으면 profile_ref 사용 (하위 호환성)
+    portfolio_id = request.portfolio_id
+    model_id = request.model_id
+    profile_ref = request.profile_ref
+    
+    # profile_ref가 있고 portfolio_id/model_id가 없으면 profile_ref를 portfolio_id로 사용 (하위 호환성)
+    if profile_ref and not portfolio_id and not model_id:
+        portfolio_id = profile_ref
+    
     # 서비스를 통한 지원서 생성
     application = create_application(
         db,
         campaign_id=request.campaign_id,
         user_id=user_id,
-        profile_ref=request.profile_ref,
+        profile_ref=profile_ref,  # 하위 호환성 유지
+        portfolio_id=portfolio_id,
+        model_id=model_id,
         message=request.message,
         available_date=request.available_date,
         available_time=request.available_time
@@ -284,9 +298,17 @@ async def _send_application_status_update(
             return
         room_id = chat_room.id
 
-    # 포트폴리오 정보 조회
+    # 포트폴리오/모델 정보 조회
     portfolio_title = None
-    if application.profile_ref:
+    if application.portfolio_id:
+        portfolio = db.query(Portfolio).filter(Portfolio.id == application.portfolio_id).first()
+        if portfolio:
+            portfolio_title = portfolio.nickname or portfolio.one_line_intro
+    elif application.model_id:
+        model = db.query(Model).filter(Model.id == application.model_id).first()
+        if model:
+            portfolio_title = model.nickname or model.one_line_intro
+    elif application.profile_ref:  # 하위 호환성
         portfolio = db.query(Portfolio).filter(Portfolio.id == application.profile_ref).first()
         if portfolio:
             portfolio_title = portfolio.nickname or portfolio.one_line_intro
