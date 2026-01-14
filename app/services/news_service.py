@@ -86,6 +86,7 @@ def create_news(
     )
     
     db.add(news_item)
+    db.flush()  # 세션 변경사항을 DB에 반영 (커밋은 아님)
     db.refresh(news_item)
     
     return news_item

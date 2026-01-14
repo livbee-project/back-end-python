@@ -182,6 +182,7 @@ def create_model(
     
     model = Model(**model_data)
     db.add(model)
+    db.flush()  # 세션 변경사항을 DB에 반영 (커밋은 아님)
     db.refresh(model)
     
     return model

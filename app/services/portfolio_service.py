@@ -182,6 +182,7 @@ def create_portfolio(
     
     portfolio = Portfolio(**portfolio_data)
     db.add(portfolio)
+    db.flush()  # 세션 변경사항을 DB에 반영 (커밋은 아님)
     db.refresh(portfolio)
     
     return portfolio

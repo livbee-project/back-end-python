@@ -79,6 +79,7 @@ def create_studio(
     
     studio = Studio(**studio_data)
     db.add(studio)
+    db.flush()  # 세션 변경사항을 DB에 반영 (커밋은 아님)
     db.refresh(studio)
     
     return studio

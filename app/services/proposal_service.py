@@ -99,6 +99,7 @@ def create_proposal(
     )
     
     db.add(proposal)
+    db.flush()  # 세션 변경사항을 DB에 반영 (커밋은 아님)
     db.refresh(proposal)
     
     return proposal
