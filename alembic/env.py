@@ -88,7 +88,7 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         # Alembic 기본 version_num은 VARCHAR(32). 긴 리비전 ID 저장 시 StringDataRightTruncation 발생하므로,
-        # PostgreSQL이고 테이블이 이미 있으면 컬럼을 VARCHAR(255)로 확장.
+        # PostgreSQL인 경우: 테이블 없으면 VARCHAR(255)로 생성, 있으면 컬럼 확장.
         if connection.dialect.name == "postgresql":
             try:
                 r = connection.execute(
@@ -97,16 +97,23 @@ def run_migrations_online() -> None:
                         "WHERE table_schema = current_schema() AND table_name = 'alembic_version'"
                     )
                 )
-                if r.scalar() is not None:
+                exists = r.scalar() is not None
+                if exists:
                     connection.execute(
                         text(
                             "ALTER TABLE alembic_version "
                             "ALTER COLUMN version_num TYPE VARCHAR(255)"
                         )
                     )
-                    connection.commit()
+                else:
+                    connection.execute(
+                        text(
+                            "CREATE TABLE alembic_version (version_num VARCHAR(255) NOT NULL PRIMARY KEY)"
+                        )
+                    )
+                connection.commit()
             except Exception:
-                # 테이블 없음, 이미 확장됨, 권한 등은 무시
+                # 이미 확장됨, 권한 등은 무시
                 pass
 
         context.configure(
