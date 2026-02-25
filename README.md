@@ -24,8 +24,8 @@ FastAPI 기반 백엔드 API 서버입니다.
 
 1. **저장소 클론**
    ```bash
-   git clone https://github.com/livbee-project/back-end-python.git
-   cd back-end-python
+   git clone https://github.com/livbee-project/porject-livbee-back.git
+   cd porject-livbee-back
    ```
 
 2. **가상환경 생성 및 활성화**
@@ -145,7 +145,7 @@ back-end-python/
 │   ├── nginx-dev.conf       # Dev Nginx 설정
 │   └── nginx-prod.conf      # Prod Nginx 설정
 ├── alembic.ini              # Alembic 설정 파일
-├── pytest.ini               # pytest 설정 파일
+├── pyproject.toml           # 프로젝트 설정, pytest 설정은 여기 있음 (pytest.ini 없음)
 ├── Dockerfile               # 런타임 이미지 (베이스 이미지 의존)
 ├── Dockerfile.base          # Python/시스템 패키지 사전 설치용 베이스 이미지
 ├── requirements.txt         # Python 패키지 의존성
@@ -255,7 +255,7 @@ pytest tests/test_user_service.py::test_create_user_success
 - **단위 테스트** (`test_*_service.py`): 서비스 레이어의 비즈니스 로직 테스트
 - **통합 테스트** (`test_api_*.py`): API 엔드포인트 통합 테스트
 
-테스트는 인메모리 SQLite 데이터베이스를 사용하여 실제 데이터베이스에 영향을 주지 않습니다.
+테스트는 인메모리 SQLite 데이터베이스를 사용하여 실제 데이터베이스에 영향을 주지 않습니다. 테스트는 로컬 또는 CI에서만 실행하며, 배포용 Docker 이미지에는 테스트 코드가 포함되지 않습니다.
 
 ### 코드 품질
 
@@ -459,6 +459,10 @@ pre-commit run --all-files
 
 이 프로젝트는 GitHub Actions를 사용하여 자동 배포를 수행합니다.
 
+**배포 방식**
+- **자동 배포**: `dev`/`prod` 브랜치 push 시 GitHub Actions가 대상 서버에 SSH 접속 후 `docker run`으로 컨테이너를 실행합니다.
+- **수동/로컬 배포**: `deploy/deploy.sh`와 `deploy/docker-compose.yml`을 사용합니다.
+
 ### 배포 프로세스
 
 1. **Dev 환경**: `dev` 브랜치에 push하면 자동 배포
@@ -472,7 +476,8 @@ pre-commit run --all-files
 4. 애플리케이션 이미지(`Dockerfile`) 빌드 후 GHCR에 push
 5. 대상 서버에서 GHCR Pull + `.env` 동적 생성 (GitHub Actions가 기본 `GITHUB_TOKEN`을 SSH 세션으로 전달하여 로그인)
 6. 기존 컨테이너 중지/삭제 후 새 컨테이너 실행
-7. 헬스체크 수행
+7. 컨테이너 내부에서 `alembic upgrade head`로 DB 마이그레이션 자동 실행
+8. 헬스체크 수행
 
 ### 배포 전 필수 작업
 
@@ -526,6 +531,34 @@ pre-commit run --all-files
 - **배포 실패**: GitHub Actions 로그 확인
 - **502 에러**: Docker 컨테이너 및 Nginx 상태 확인
 - **DB 연결 실패**: 환경변수 및 방화벽 설정 확인
+
+### 한글 깨짐 (커밋 메시지 / git log)
+
+**원인**  
+Windows에서 Git이 커밋 메시지나 로그 출력에 기본 인코딩(CP949 등)을 쓰거나, 셸이 UTF-8이 아니면 한글이 깨질 수 있습니다.
+
+**해결 및 사전 작업**  
+이 저장소에는 이미 아래 설정이 로컬(`.git/config`)에 적용되어 있습니다.
+
+- `i18n.commitEncoding=utf-8` — 커밋 메시지를 UTF-8로 해석
+- `i18n.logOutputEncoding=utf-8` — `git log` 등 출력을 UTF-8로
+- `core.quotepath=false` — 한글 파일명을 이스케이프하지 않고 표시
+
+다른 PC에서 클론한 경우, 프로젝트 루트에서 한 번만 실행하면 됩니다.
+
+```bash
+git config i18n.commitEncoding utf-8
+git config i18n.logOutputEncoding utf-8
+git config core.quotepath false
+```
+
+PowerShell에서 커밋/푸시할 때 한글이 깨지면, 명령 실행 전에 UTF-8을 지정한 뒤 진행하세요.
+
+```powershell
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+chcp 65001
+```
 
 ---
 

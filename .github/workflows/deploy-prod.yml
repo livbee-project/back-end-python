@@ -154,6 +154,10 @@ jobs:
               --env-file .env \
               "$IMAGE"
 
+            echo "🔄 DB 마이그레이션 실행..."
+            sleep 3
+            docker exec livbee-backend-prod alembic upgrade head
+
             if [ "$LOGIN_DONE" -eq 1 ]; then
               docker logout ghcr.io
             fi

@@ -1,3 +1,6 @@
+# 재현 가능한 빌드를 원하면: pip freeze > requirements-frozen.txt 로 고정 버전 백업 권장.
+# 주요 패키지 업그레이드 후 상위 호환 확인하고 버전 상한 추가 가능.
+
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
 psycopg2-binary>=2.9.11
