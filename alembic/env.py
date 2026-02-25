@@ -6,6 +6,7 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+from sqlalchemy import text
 
 from alembic import context
 
@@ -86,6 +87,28 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Alembic 기본 version_num은 VARCHAR(32). 긴 리비전 ID 저장 시 StringDataRightTruncation 발생하므로,
+        # PostgreSQL이고 테이블이 이미 있으면 컬럼을 VARCHAR(255)로 확장.
+        if connection.dialect.name == "postgresql":
+            try:
+                r = connection.execute(
+                    text(
+                        "SELECT 1 FROM information_schema.tables "
+                        "WHERE table_schema = current_schema() AND table_name = 'alembic_version'"
+                    )
+                )
+                if r.scalar() is not None:
+                    connection.execute(
+                        text(
+                            "ALTER TABLE alembic_version "
+                            "ALTER COLUMN version_num TYPE VARCHAR(255)"
+                        )
+                    )
+                    connection.commit()
+            except Exception:
+                # 테이블 없음, 이미 확장됨, 권한 등은 무시
+                pass
+
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
