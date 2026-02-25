@@ -17,8 +17,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.drop_column("campaigns", "product_url")
-    op.drop_column("campaigns", "live_stream_url")
+    conn = op.get_bind()
+    conn.execute(sa.text("ALTER TABLE campaigns DROP COLUMN IF EXISTS product_url"))
+    conn.execute(sa.text("ALTER TABLE campaigns DROP COLUMN IF EXISTS live_stream_url"))
 
 
 def downgrade() -> None:

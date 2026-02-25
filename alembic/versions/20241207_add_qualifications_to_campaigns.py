@@ -18,7 +18,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("campaigns", sa.Column("qualifications", postgresql.ARRAY(sa.String()), nullable=True))
+    conn = op.get_bind()
+    conn.execute(sa.text("ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS qualifications TEXT[]"))
 
 
 def downgrade() -> None:

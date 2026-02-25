@@ -17,7 +17,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("campaigns", sa.Column("detailed_content", sa.String(), nullable=True))
+    conn = op.get_bind()
+    conn.execute(sa.text("ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS detailed_content VARCHAR"))
 
 
 def downgrade() -> None:

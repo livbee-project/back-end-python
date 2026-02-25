@@ -17,8 +17,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("applications", sa.Column("available_date", sa.Date(), nullable=True))
-    op.add_column("applications", sa.Column("available_time", sa.String(), nullable=True))
+    # Dev 등에서 컬럼이 이미 있는 경우(이전 부분 적용) DuplicateColumn 방지
+    conn = op.get_bind()
+    conn.execute(sa.text("ALTER TABLE applications ADD COLUMN IF NOT EXISTS available_date DATE"))
+    conn.execute(sa.text("ALTER TABLE applications ADD COLUMN IF NOT EXISTS available_time VARCHAR"))
 
 
 def downgrade() -> None:

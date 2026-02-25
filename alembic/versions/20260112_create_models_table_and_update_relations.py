@@ -18,6 +18,16 @@ depends_on = None
 
 
 def upgrade() -> None:
+    conn = op.get_bind()
+    r = conn.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema = 'public' AND table_name = 'models'"
+        )
+    ).scalar()
+    if r is not None:
+        return
+
     # models 테이블 생성
     op.create_table(
         "models",
