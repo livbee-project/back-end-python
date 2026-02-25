@@ -34,6 +34,16 @@ def upgrade() -> None:
             )
         )
 
+    # Dev 등에서 테이블이 이미 있는 경우(이전 부분 적용·수동 생성) DuplicateTable 방지
+    r = conn.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema = 'public' AND table_name = 'chat_rooms'"
+        )
+    ).scalar()
+    if r is not None:
+        return
+
     chat_room_status_enum = postgresql.ENUM("active", "closed", name="chatroomstatus", create_type=False)
     chat_message_type_enum = postgresql.ENUM("text", "image", "system", name="chatmessagetype", create_type=False)
     chat_message_status_enum = postgresql.ENUM("sent", "delivered", "read", name="chatmessagestatus", create_type=False)
