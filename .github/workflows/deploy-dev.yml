@@ -74,6 +74,28 @@ jobs:
           build-args: |
             GHCR_BASE_IMAGE=${{ steps.meta.outputs.base_image }}
 
+      - name: Debug - DB 연결 (Dev 서버 호스트에서)
+        uses: appleboy/ssh-action@v1.0.3
+        continue-on-error: true
+        env:
+          DEV_DB_HOST: ${{ secrets.DEV_DB_HOST }}
+          DEV_DB_PORT: ${{ secrets.DEV_DB_PORT }}
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: 22
+          envs: DEV_DB_HOST,DEV_DB_PORT
+          script: |
+            echo "--- Dev 서버 호스트 → DB 연결 테스트 ---"
+            echo "DB_HOST: ${DEV_DB_HOST:0:2}*** (마스킹), DB_PORT: $DEV_DB_PORT"
+            if timeout 3 bash -c "cat < /dev/null > /dev/tcp/$DEV_DB_HOST/$DEV_DB_PORT" 2>/dev/null; then
+              echo "✅ [Host] DB 포트 연결 가능 (호스트에서 DB까지 경로 정상)"
+            else
+              echo "❌ [Host] DB 포트 연결 불가 (No route to host / timeout / connection refused 등)"
+              echo "  → 방화벽, DB_HOST 주소, DB 서버 가동 여부 확인"
+            fi
+
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
         env:
@@ -162,7 +184,36 @@ jobs:
             fi
             echo "✅ 배포 완료!"
 
+      - name: Debug - 배포 실패 시 컨테이너→DB 연결
+        if: failure()
+        uses: appleboy/ssh-action@v1.0.3
+        continue-on-error: true
+        with:
+          host: ${{ secrets.DEV_SERVER_HOST }}
+          username: ${{ secrets.DEV_SERVER_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            echo "--- 배포 실패 시 디버깅: 컨테이너 내부 → DB ---"
+            cd /home/${{ secrets.DEV_SERVER_USER }}/livbee-backend 2>/dev/null || true
+            if docker ps -a --format '{{.Names}}' | grep -q livbee-backend-dev; then
+              echo "컨테이너 내부에서 DB 포트 연결 테스트..."
+              docker exec livbee-backend-dev python3 -c "
+            import socket, os
+            h = os.environ.get('DB_HOST', '')
+            p = int(os.environ.get('DB_PORT', '5432'))
+            s = socket.socket()
+            s.settimeout(3)
+            r = s.connect_ex((h, p))
+            print('✅ [Container] DB 포트 연결 가능' if r == 0 else '❌ [Container] DB 포트 연결 불가 (No route to host 등)')
+            exit(0 if r == 0 else 1)
+            " 2>&1 || echo "❌ [Container] 테스트 실패 (컨테이너/파이썬 확인)"
+            else
+              echo "컨테이너 livbee-backend-dev 없음 (배포 단계에서 중단됨)"
+            fi
+
       - name: Health check
+        if: success()
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEV_SERVER_HOST }}
