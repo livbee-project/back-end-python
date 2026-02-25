@@ -7,6 +7,7 @@ Create Date: 2024-11-25
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -33,10 +34,10 @@ def upgrade() -> None:
             )
         )
 
-    chat_room_status_enum = sa.Enum("active", "closed", name="chatroomstatus", create_type=False)
-    chat_message_type_enum = sa.Enum("text", "image", "system", name="chatmessagetype", create_type=False)
-    chat_message_status_enum = sa.Enum("sent", "delivered", "read", name="chatmessagestatus", create_type=False)
-    chat_participant_role_enum = sa.Enum("brand", "showhost", name="chatparticipantrole", create_type=False)
+    chat_room_status_enum = postgresql.ENUM("active", "closed", name="chatroomstatus", create_type=False)
+    chat_message_type_enum = postgresql.ENUM("text", "image", "system", name="chatmessagetype", create_type=False)
+    chat_message_status_enum = postgresql.ENUM("sent", "delivered", "read", name="chatmessagestatus", create_type=False)
+    chat_participant_role_enum = postgresql.ENUM("brand", "showhost", name="chatparticipantrole", create_type=False)
 
     op.create_table(
         "chat_rooms",
@@ -129,8 +130,8 @@ def downgrade() -> None:
     op.drop_index("ix_chat_rooms_campaign_id", table_name="chat_rooms")
     op.drop_table("chat_rooms")
 
-    sa.Enum(name="chatparticipantrole").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="chatmessagestatus").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="chatmessagetype").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="chatroomstatus").drop(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(name="chatparticipantrole").drop(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(name="chatmessagestatus").drop(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(name="chatmessagetype").drop(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(name="chatroomstatus").drop(op.get_bind(), checkfirst=True)
 
