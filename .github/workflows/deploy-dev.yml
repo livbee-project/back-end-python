@@ -195,6 +195,7 @@ jobs:
           port: 22
           script: |
             echo "--- 배포 실패 시 디버깅: 컨테이너 내부 → DB ---"
+            echo "💡 에러에 'no pg_hba.conf entry'가 있으면 DB 서버의 pg_hba.conf에 Dev 서버 IP 허용이 필요합니다. → docs/DEV_SERVER_CHECKLIST.md 트러블슈팅 참고"
             cd /home/${{ secrets.DEV_SERVER_USER }}/livbee-backend 2>/dev/null || true
             if docker ps -a --format '{{.Names}}' | grep -q livbee-backend-dev; then
               echo "컨테이너 내부에서 DB 포트 연결 테스트..."
