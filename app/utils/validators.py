@@ -2,6 +2,7 @@
 공통 유효성 검증 유틸리티
 날짜·시간·형식 등 도메인 검증 로직
 """
+
 from datetime import date, datetime, timedelta
 from typing import Optional
 
@@ -31,9 +32,7 @@ def validate_campaign_dates(
     if shoot_date < today:
         raise ValidationError("촬영일은 오늘 이후여야 합니다.")
     if close_at >= shoot_date:
-        raise ValidationError(
-            "마감일은 촬영일보다 이전이어야 합니다. 같은 날은 허용되지 않습니다."
-        )
+        raise ValidationError("마감일은 촬영일보다 이전이어야 합니다. 같은 날은 허용되지 않습니다.")
 
 
 def validate_time_range(start_time: str, end_time: str) -> None:
@@ -90,6 +89,7 @@ def validate_portfolio_urls(
     """
     if validate_fn is None:
         from app.utils.common import validate_url
+
         validate_fn = validate_url
 
     url_fields = {
@@ -122,6 +122,7 @@ def validate_portfolio_contact(contact: Optional[str], validate_fn=None) -> Opti
         return None
     if validate_fn is None:
         from app.utils.common import validate_phone_number
+
         validate_fn = validate_phone_number
     if not validate_fn(contact):
         return "연락처 전화번호 형식이 올바르지 않습니다."

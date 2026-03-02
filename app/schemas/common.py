@@ -2,6 +2,7 @@
 공통 스키마
 페이지네이션 메타 등 여러 도메인에서 재사용되는 스키마
 """
+
 from typing import Optional
 
 from pydantic import BaseModel, Field

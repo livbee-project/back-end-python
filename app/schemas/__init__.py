@@ -2,6 +2,7 @@
 Pydantic 스키마 모듈
 도메인별 요청/응답 스키마 정의
 """
+
 from app.schemas.applications import ApplicationCreate, ApplicationStatusUpdate
 from app.schemas.campaigns import CampaignCreate, CampaignUpdate
 from app.schemas.chat import (

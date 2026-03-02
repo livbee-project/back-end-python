@@ -2,6 +2,7 @@
 Campaign 도메인 스키마
 캠페인/공고 관련 요청/응답
 """
+
 from datetime import date
 from typing import List, Optional
 

@@ -2,6 +2,7 @@
 Proposal 도메인 스키마
 제안 관련 요청/응답
 """
+
 from datetime import date
 from typing import Optional
 

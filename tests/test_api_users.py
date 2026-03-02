@@ -3,7 +3,6 @@
 """
 
 
-
 def test_signup_success(client):
     """회원가입 성공 테스트"""
     response = client.post(
