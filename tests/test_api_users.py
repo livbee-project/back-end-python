@@ -95,3 +95,39 @@ def test_login_invalid_credentials(client):
     data = response.json()
     assert data["ok"] == False
 
+
+def test_login_role_mismatch_brand_only_tries_showhost(client):
+    """
+    브랜드 전용 계정으로 role=showhost 로그인 시 403 ROLE_MISMATCH 반환
+    응답 형식: ok, error, message, userMessage 최상위 필드 검증
+    """
+    # 브랜드 전용 계정 회원가입 (is_brand=True, is_showhost=False)
+    client.post(
+        "/api/v1/users/signup",
+        json={
+            "name": "Brand User",
+            "email": "brand@example.com",
+            "password": "brandpassword123",
+            "role": "brand",
+            "brandName": "Test Brand"
+        }
+    )
+    
+    # role=showhost로 로그인 시도 → 403 ROLE_MISMATCH
+    response = client.post(
+        "/api/v1/users/login",
+        json={
+            "email": "brand@example.com",
+            "password": "brandpassword123",
+            "role": "showhost"
+        }
+    )
+    
+    assert response.status_code == 403
+    data = response.json()
+    assert data["ok"] == False
+    assert data["error"] == "ROLE_MISMATCH"
+    assert "message" in data
+    assert "userMessage" in data
+    assert data["userMessage"] == "선택하신 역할과 계정 정보가 일치하지 않습니다."
+

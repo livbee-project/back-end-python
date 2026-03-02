@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from app.core.config import settings
@@ -163,6 +164,35 @@ app.add_middleware(
 
 
 # 전역 예외 핸들러
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """
+    HTTPException 응답을 fail_response 형식으로 통일
+    - detail이 dict({ error, message, userMessage }) → 최상위로 펼쳐서 반환
+    - detail이 문자열 → userMessage로 사용
+    프론트에서 response.userMessage로 일관되게 추출 가능
+    """
+    detail = exc.detail
+    if isinstance(detail, dict):
+        error = detail.get("error", "ERROR")
+        message = detail.get("message", "An error occurred")
+        user_message = detail.get("userMessage", message)
+    else:
+        error = "ERROR"
+        message = str(detail) if detail else "An error occurred"
+        user_message = message
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "ok": False,
+            "error": error,
+            "message": message,
+            "userMessage": user_message,
+        },
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """요청 검증 오류 처리"""
