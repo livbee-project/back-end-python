@@ -149,10 +149,10 @@ async def create_campaign(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="촬영일은 오늘 이후여야 합니다."
         )
-    if request.close_at <= request.shoot_date:
+    if request.close_at >= request.shoot_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="마감일은 촬영일보다 이후여야 합니다."
+            detail="마감일은 촬영일보다 이전이어야 합니다. 같은 날은 허용되지 않습니다."
         )
 
     # 시간 유효성 검증
@@ -392,10 +392,10 @@ async def update_campaign(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="촬영일은 오늘 이후여야 합니다."
             )
-        if close_at <= shoot_date:
+        if close_at >= shoot_date:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="마감일은 촬영일보다 이후여야 합니다."
+                detail="마감일은 촬영일보다 이전이어야 합니다. 같은 날은 허용되지 않습니다."
             )
 
     # 시간 유효성 검증 (업데이트되는 경우만)
