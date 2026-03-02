@@ -1,4 +1,4 @@
-﻿name: Deploy to Dev Environment
+name: Deploy to Dev Environment
 
 on:
   push:
@@ -10,6 +10,12 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    env:
+      DB_HOST: localhost
+      DB_NAME: test_db
+      DB_USER: test_user
+      DB_PASSWORD: test_password
+      JWT_SECRET: test-jwt-secret-for-ci
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
