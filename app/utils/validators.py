@@ -3,7 +3,7 @@
 날짜·시간·형식 등 도메인 검증 로직
 """
 from datetime import date, datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Optional
 
 
 class ValidationError(Exception):
@@ -50,8 +50,8 @@ def validate_time_range(start_time: str, end_time: str) -> None:
         end = datetime.strptime(end_time, "%H:%M")
         if end == start:
             raise ValidationError("종료 시간은 시작 시간보다 이후여야 합니다.")
-    except ValueError:
-        raise ValidationError("시간 형식이 올바르지 않습니다. (HH:MM 형식)")
+    except ValueError as e:
+        raise ValidationError("시간 형식이 올바르지 않습니다. (HH:MM 형식)") from e
 
 
 def calculate_duration_hours(start_time: str, end_time: str) -> Optional[float]:

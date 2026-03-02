@@ -48,7 +48,7 @@ def test_get_campaigns_list(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["ok"] == True
+    assert data["ok"]
     assert "data" in data["data"]
 
 
@@ -64,7 +64,7 @@ def test_create_campaign_success(client, brand_user_token):
 
     assert response.status_code == 201
     data = response.json()
-    assert data["ok"] == True
+    assert data["ok"]
     assert "data" in data["data"]
     assert data["data"]["data"]["title"] == "Test Campaign"
 
@@ -85,7 +85,7 @@ def test_get_campaign_by_id(client, brand_user_token):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["ok"] == True
+    assert data["ok"]
     assert data["data"]["data"]["id"] == campaign_id
 
 
@@ -105,7 +105,7 @@ def test_get_my_campaigns(client, brand_user_token):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["ok"] == True
+    assert data["ok"]
     assert len(data["data"]["data"]) >= 1
 
 

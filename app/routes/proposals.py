@@ -13,10 +13,16 @@ from app.middleware.role import require_role
 from app.models.user import UserRole
 from app.schemas.proposals import ProposalCreate
 from app.services.proposal_service import (
-    create_proposal,
-    get_received_proposals,
-    get_sent_proposals,
-    withdraw_proposal,
+    create_proposal as create_proposal_svc,
+)
+from app.services.proposal_service import (
+    get_received_proposals as get_received_proposals_svc,
+)
+from app.services.proposal_service import (
+    get_sent_proposals as get_sent_proposals_svc,
+)
+from app.services.proposal_service import (
+    withdraw_proposal as withdraw_proposal_svc,
 )
 from app.utils.common import format_date
 from app.utils.response import success_response
@@ -47,7 +53,7 @@ async def create_proposal(
         )
 
     # 서비스를 통한 제안 생성
-    proposal = create_proposal(
+    create_proposal_svc(
         db,
         target_portfolio_id=request.target_portfolio_id,
         target_model_id=request.target_model_id,
@@ -81,7 +87,7 @@ async def get_sent_proposals(
     proposer_id = current_user.get("sub")
 
     # 서비스를 통한 보낸 제안 목록 조회 (쿼리 최적화: joinedload 사용)
-    proposals, total_items = get_sent_proposals(
+    proposals, total_items = get_sent_proposals_svc(
         db, proposer_id=proposer_id, status_filter=status_filter, page=page, limit=limit
     )
 
@@ -133,7 +139,7 @@ async def get_received_proposals(
     showhost_id = current_user.get("sub")
 
     # 서비스를 통한 받은 제안 목록 조회
-    proposals, total_items = get_received_proposals(
+    proposals, total_items = get_received_proposals_svc(
         db, showhost_id=showhost_id, status_filter=status_filter, page=page, limit=limit
     )
 
@@ -179,6 +185,6 @@ async def withdraw_proposal(
     proposer_id = current_user.get("sub")
 
     # 서비스를 통한 제안 철회
-    withdraw_proposal(db, proposal_id, proposer_id)
+    withdraw_proposal_svc(db, proposal_id, proposer_id)
 
     return success_response({"message": "제안이 성공적으로 철회되었습니다."})

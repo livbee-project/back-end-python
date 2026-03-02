@@ -63,7 +63,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
         encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
         return encoded_jwt
     except Exception as e:
-        raise ValueError(f"Failed to encode JWT token: {str(e)}")
+        raise ValueError(f"Failed to encode JWT token: {str(e)}") from e
 
 
 def decode_token(token: str) -> Optional[Dict[str, Any]]:

@@ -80,7 +80,7 @@ def test_create_application_success(client, showhost_user_token, test_campaign):
 
     assert response.status_code == 201
     data = response.json()
-    assert data["ok"] == True
+    assert data["ok"]
     assert "data" in data["data"]
     assert "chatRoomId" in data["data"]
 
@@ -88,7 +88,7 @@ def test_create_application_success(client, showhost_user_token, test_campaign):
 def test_get_my_application(client, showhost_user_token, test_campaign):
     """내 지원서 조회 테스트"""
     # 지원서 생성
-    create_response = client.post(
+    client.post(
         "/api/v1/applications",
         headers={"Authorization": f"Bearer {showhost_user_token}"},
         json={"campaignId": test_campaign["id"], "message": "Test application"},
@@ -102,5 +102,5 @@ def test_get_my_application(client, showhost_user_token, test_campaign):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["ok"] == True
+    assert data["ok"]
     assert data["data"]["data"] is not None

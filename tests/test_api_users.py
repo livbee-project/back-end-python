@@ -18,7 +18,7 @@ def test_signup_success(client):
 
     assert response.status_code == 201
     data = response.json()
-    assert data["ok"] == True
+    assert data["ok"]
     assert "userId" in data["data"]
 
 
@@ -48,7 +48,7 @@ def test_signup_duplicate_email(client):
 
     assert response.status_code == 409
     data = response.json()
-    assert data["ok"] == False
+    assert not data["ok"]
 
 
 def test_login_success(client):
@@ -71,7 +71,7 @@ def test_login_success(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["ok"] == True
+    assert data["ok"]
     assert "token" in data["data"]
     assert "user" in data["data"]
 
@@ -85,7 +85,7 @@ def test_login_invalid_credentials(client):
 
     assert response.status_code == 401
     data = response.json()
-    assert data["ok"] == False
+    assert not data["ok"]
 
 
 def test_login_role_mismatch_brand_only_tries_showhost(client):
@@ -113,7 +113,7 @@ def test_login_role_mismatch_brand_only_tries_showhost(client):
 
     assert response.status_code == 403
     data = response.json()
-    assert data["ok"] == False
+    assert not data["ok"]
     assert data["error"] == "ROLE_MISMATCH"
     assert "message" in data
     assert "userMessage" in data

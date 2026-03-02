@@ -120,7 +120,7 @@ def test_get_sent_proposals(db_session, test_brand_user, test_portfolio):
 def test_get_sent_proposals_with_filter(db_session, test_brand_user, test_portfolio):
     """상태 필터를 사용한 보낸 제안 목록 조회 테스트"""
     # 제안 생성
-    proposal = create_proposal(
+    create_proposal(
         db_session,
         target_portfolio_id=test_portfolio.id,
         proposer_id=test_brand_user.id,

@@ -8,7 +8,15 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.studios import StudioCreate, StudioUpdate
-from app.services.studio_service import create_studio, get_studio_by_id, update_studio
+from app.services.studio_service import (
+    create_studio as create_studio_svc,
+)
+from app.services.studio_service import (
+    get_studio_by_id,
+)
+from app.services.studio_service import (
+    update_studio as update_studio_svc,
+)
 from app.utils.common import model_to_dict
 from app.utils.response import success_response
 
@@ -23,7 +31,7 @@ async def create_studio(request: StudioCreate, db: Session = Depends(get_db)):
     studio_data = request.model_dump(exclude_unset=True, by_alias=False)
 
     # 서비스를 통한 스튜디오 생성
-    studio = create_studio(db, **studio_data)
+    studio = create_studio_svc(db, **studio_data)
 
     data = model_to_dict(studio)
     return success_response({"data": data}, status_code=status.HTTP_201_CREATED)
@@ -37,7 +45,7 @@ async def update_studio(studio_id: str, request: StudioUpdate, db: Session = Dep
     update_data = request.model_dump(exclude_unset=True, by_alias=False)
 
     # 서비스를 통한 스튜디오 수정
-    studio = update_studio(db, studio_id, **update_data)
+    studio = update_studio_svc(db, studio_id, **update_data)
 
     data = model_to_dict(studio)
     return success_response({"data": data})

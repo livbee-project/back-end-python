@@ -18,6 +18,18 @@ from app.core.config import settings
 from app.core.database import engine, init_db
 from app.core.logging_config import get_logger, setup_logging
 from app.core.rate_limit import limiter
+from app.routes import (
+    applications,
+    campaigns,
+    chat,
+    models,
+    news,
+    portfolios,
+    proposals,
+    studios,
+    uploads,
+    users,
+)
 from app.utils.response import fail_response, success_response
 
 # 로깅 설정
@@ -243,19 +255,6 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 # 라우터 등록
-from app.routes import (
-    applications,
-    campaigns,
-    chat,
-    models,
-    news,
-    portfolios,
-    proposals,
-    studios,
-    uploads,
-    users,
-)
-
 app.include_router(users.router, prefix=settings.API_BASE_PATH)
 app.include_router(portfolios.router, prefix=settings.API_BASE_PATH)
 app.include_router(models.router, prefix=settings.API_BASE_PATH)

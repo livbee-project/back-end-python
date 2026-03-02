@@ -33,7 +33,7 @@ def test_get_news_list(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["ok"] == True
+    assert data["ok"]
     assert "data" in data["data"]
 
 
@@ -54,5 +54,5 @@ def test_get_news_by_id(client, admin_user_token):
 
         assert response.status_code == 200
         data = response.json()
-        assert data["ok"] == True
+        assert data["ok"]
         assert data["data"]["data"]["id"] == news_id

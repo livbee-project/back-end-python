@@ -10,10 +10,6 @@ from app.core.database import get_db
 from app.core.logging_config import get_logger
 from app.middleware.role import require_role
 from app.models.user import UserRole
-from app.utils.common import model_to_dict, models_to_list
-from app.utils.response import fail_response, success_response
-
-logger = get_logger(__name__)
 from app.schemas.portfolios import PortfolioCreate, PortfolioUpdate
 from app.services.portfolio_service import (
     create_portfolio as create_portfolio_service,
@@ -27,7 +23,10 @@ from app.services.portfolio_service import (
 from app.services.portfolio_service import (
     update_portfolio as update_portfolio_service,
 )
+from app.utils.common import model_to_dict, models_to_list
+from app.utils.response import fail_response, success_response
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 
 
@@ -72,7 +71,7 @@ async def create_portfolio(
                 "message": "포트폴리오 생성 중 오류가 발생했습니다.",
                 "userMessage": "서버에 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
             },
-        )
+        ) from e
 
     data = model_to_dict(portfolio)
     return success_response(

@@ -11,14 +11,12 @@ from app.core.logging_config import get_logger
 from app.core.rate_limit import limiter
 from app.middleware.auth import get_current_user
 from app.models.user import UserRole
+from app.schemas.users import LoginRequest, SignupRequest
 from app.services.user_service import authenticate_user, create_user, get_user_by_id
 from app.utils.common import mask_email, mask_phone, normalize_phone_number
 from app.utils.response import fail_response, success_response
 
 logger = get_logger(__name__)
-
-from app.schemas.users import LoginRequest, SignupRequest
-
 router = APIRouter(prefix="/users", tags=["users"])
 
 

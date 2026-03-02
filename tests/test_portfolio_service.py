@@ -82,14 +82,14 @@ def test_get_portfolio_by_id_not_found(db_session):
 def test_check_user_has_portfolio(db_session, test_user):
     """사용자 포트폴리오 존재 확인 테스트"""
     # 포트폴리오 없을 때
-    assert check_user_has_portfolio(db_session, test_user.id) == False
+    assert not check_user_has_portfolio(db_session, test_user.id)
 
     # 포트폴리오 생성
     portfolio_data = {"nickname": "Test Model", "status": "published"}
     create_portfolio(db_session, test_user.id, portfolio_data)
 
     # 포트폴리오 있을 때
-    assert check_user_has_portfolio(db_session, test_user.id) == True
+    assert check_user_has_portfolio(db_session, test_user.id)
 
 
 def test_update_portfolio_success(db_session, test_user):

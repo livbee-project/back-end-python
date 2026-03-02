@@ -53,7 +53,7 @@ def validate_and_prepare_campaign_data(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e.message),
-        )
+        ) from e
 
     # 시간 유효성 검증
     try:
@@ -62,7 +62,7 @@ def validate_and_prepare_campaign_data(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e.message),
-        )
+        ) from e
 
     # prefix 영문 코드 → 한글 변환
     prefix_korean = prefix_to_korean(request.prefix) if request.prefix else None
@@ -154,7 +154,7 @@ def prepare_campaign_update_data(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e.message),
-            )
+            ) from e
 
     # 시간 유효성 검증 (업데이트되는 경우만)
     if "start_time" in update_data or "end_time" in update_data:
@@ -166,7 +166,7 @@ def prepare_campaign_update_data(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e.message),
-            )
+            ) from e
 
     # prefix 영문 코드 → 한글 변환
     if "prefix" in update_data and update_data["prefix"]:
@@ -376,7 +376,7 @@ def get_campaigns_with_applied_status(
     """
     skip = (page - 1) * limit
 
-    query = db.query(Campaign).filter(Campaign.is_public == True, Campaign.close_at >= date.today())
+    query = db.query(Campaign).filter(Campaign.is_public, Campaign.close_at >= date.today())
 
     # 검색 조건
     if search:

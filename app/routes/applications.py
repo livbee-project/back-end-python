@@ -21,7 +21,9 @@ from app.models.portfolio import Portfolio
 from app.models.user import User, UserRole
 from app.schemas.applications import ApplicationCreate, ApplicationStatusUpdate
 from app.services.application_service import (
-    create_application,
+    create_application as create_application_svc,
+)
+from app.services.application_service import (
     get_application_by_campaign_and_user,
     get_applications_by_campaign,
 )
@@ -75,7 +77,7 @@ async def create_application(
         portfolio_id = profile_ref
 
     # 서비스를 통한 지원서 생성
-    application = create_application(
+    application = create_application_svc(
         db,
         campaign_id=request.campaign_id,
         user_id=user_id,

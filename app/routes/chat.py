@@ -172,7 +172,7 @@ def _application_payload(
         ApplicationStatus.ACCEPTED: "accepted",
         ApplicationStatus.REJECTED: "rejected",
     }
-    status_value = (
+    (
         application.status.value if hasattr(application.status, "value") else application.status
     )
     mapped_status = status_map.get(application.status, "pending")

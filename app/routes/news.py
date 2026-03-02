@@ -11,11 +11,19 @@ from app.middleware.role import require_role
 from app.models.user import UserRole
 from app.schemas.news import NewsCreate, NewsUpdate
 from app.services.news_service import (
-    create_news,
-    delete_news,
+    create_news as create_news_svc,
+)
+from app.services.news_service import (
+    delete_news as delete_news_svc,
+)
+from app.services.news_service import (
     get_news_by_id,
-    get_news_list,
-    update_news,
+)
+from app.services.news_service import (
+    get_news_list as get_news_list_svc,
+)
+from app.services.news_service import (
+    update_news as update_news_svc,
 )
 from app.utils.common import model_to_dict, strip_tags, truncate_text
 from app.utils.pagination import (
@@ -37,7 +45,7 @@ async def get_news_list(
     page, limit = normalize_pagination(page, limit, max_limit=50)
 
     # 서비스를 통한 뉴스 목록 조회
-    news_items, total_items = get_news_list(db, page, limit)
+    news_items, total_items = get_news_list_svc(db, page, limit)
 
     items = []
     for news in news_items:
@@ -71,7 +79,7 @@ async def create_news(
     user_id = current_user.get("sub")
 
     # 서비스를 통한 뉴스 생성
-    news_item = create_news(
+    news_item = create_news_svc(
         db,
         title=request.title,
         content=request.content,
@@ -97,7 +105,7 @@ async def update_news(
     image_url = str(update_data["image_url"]) if update_data.get("image_url") else None
 
     # 서비스를 통한 뉴스 수정
-    news_item = update_news(
+    news_item = update_news_svc(
         db,
         news_id=news_id,
         title=update_data.get("title"),
@@ -119,6 +127,6 @@ async def delete_news(
     특정 ID의 뉴스 삭제
     """
     # 서비스를 통한 뉴스 삭제
-    delete_news(db, news_id)
+    delete_news_svc(db, news_id)
 
     return success_response({"message": "뉴스가 성공적으로 삭제되었습니다."})

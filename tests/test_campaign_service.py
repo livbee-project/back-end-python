@@ -123,12 +123,12 @@ def test_check_application_exists(db_session, test_campaign):
     )
 
     # 지원 전
-    assert check_application_exists(db_session, test_campaign.id, showhost.id) == False
+    assert not check_application_exists(db_session, test_campaign.id, showhost.id)
 
     # 지원 후
     create_application(db_session, campaign_id=test_campaign.id, user_id=showhost.id)
 
-    assert check_application_exists(db_session, test_campaign.id, showhost.id) == True
+    assert check_application_exists(db_session, test_campaign.id, showhost.id)
 
 
 def test_get_campaigns_with_applied_status(db_session, test_user):
