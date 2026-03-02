@@ -3,12 +3,35 @@
 """
 
 import uuid
+from datetime import date, timedelta
 
 import pytest
 
+from app.models.campaign import Campaign
 from app.models.chat import ChatParticipant, ChatRoomStatus
 from app.models.user import UserRole
 from app.services.chat_service import ensure_chat_room
+
+
+@pytest.fixture
+def test_campaign(db_session, test_brand_user):
+    """테스트용 캠페인 생성 (ChatRoom FK 제약을 위해 필요)"""
+    campaign = Campaign(
+        id=str(uuid.uuid4()),
+        title="Test Campaign",
+        content="Test content",
+        brand_name="Test Brand",
+        created_by=test_brand_user.id,
+        shoot_date=date.today() + timedelta(days=14),
+        close_at=date.today() + timedelta(days=7),
+        duration_hours=8,
+        start_time="09:00",
+        end_time="18:00",
+        is_public=True,
+    )
+    db_session.add(campaign)
+    db_session.flush()
+    return campaign
 
 
 @pytest.fixture
@@ -40,25 +63,19 @@ def test_showhost_user(db_session):
     )
 
 
-@pytest.fixture
-def test_campaign_id():
-    """테스트용 캠페인 ID"""
-    return str(uuid.uuid4())
-
-
 def test_ensure_chat_room_create_new(
-    db_session, test_brand_user, test_showhost_user, test_campaign_id
+    db_session, test_brand_user, test_showhost_user, test_campaign
 ):
     """새 채팅방 생성 테스트"""
     room = ensure_chat_room(
         db_session,
-        campaign_id=test_campaign_id,
+        campaign_id=test_campaign.id,
         brand_user_id=test_brand_user.id,
         showhost_user_id=test_showhost_user.id,
     )
 
     assert room is not None
-    assert room.campaign_id == test_campaign_id
+    assert room.campaign_id == test_campaign.id
     assert room.brand_user_id == test_brand_user.id
     assert room.showhost_user_id == test_showhost_user.id
     assert room.status == ChatRoomStatus.ACTIVE
@@ -75,13 +92,13 @@ def test_ensure_chat_room_create_new(
 
 
 def test_ensure_chat_room_existing(
-    db_session, test_brand_user, test_showhost_user, test_campaign_id
+    db_session, test_brand_user, test_showhost_user, test_campaign
 ):
     """기존 채팅방 조회 테스트"""
     # 첫 번째 생성
     room1 = ensure_chat_room(
         db_session,
-        campaign_id=test_campaign_id,
+        campaign_id=test_campaign.id,
         brand_user_id=test_brand_user.id,
         showhost_user_id=test_showhost_user.id,
     )
@@ -89,7 +106,7 @@ def test_ensure_chat_room_existing(
     # 두 번째 호출 (기존 방 반환)
     room2 = ensure_chat_room(
         db_session,
-        campaign_id=test_campaign_id,
+        campaign_id=test_campaign.id,
         brand_user_id=test_brand_user.id,
         showhost_user_id=test_showhost_user.id,
     )
@@ -105,14 +122,14 @@ def test_ensure_chat_room_existing(
 
 
 def test_ensure_chat_room_with_application_id(
-    db_session, test_brand_user, test_showhost_user, test_campaign_id
+    db_session, test_brand_user, test_showhost_user, test_campaign
 ):
     """application_id를 포함한 채팅방 생성 테스트"""
     application_id = str(uuid.uuid4())
 
     room = ensure_chat_room(
         db_session,
-        campaign_id=test_campaign_id,
+        campaign_id=test_campaign.id,
         brand_user_id=test_brand_user.id,
         showhost_user_id=test_showhost_user.id,
         application_id=application_id,
@@ -122,13 +139,13 @@ def test_ensure_chat_room_with_application_id(
 
 
 def test_ensure_chat_room_update_application_id(
-    db_session, test_brand_user, test_showhost_user, test_campaign_id
+    db_session, test_brand_user, test_showhost_user, test_campaign
 ):
     """기존 채팅방에 application_id 추가 테스트"""
     # application_id 없이 생성
     room1 = ensure_chat_room(
         db_session,
-        campaign_id=test_campaign_id,
+        campaign_id=test_campaign.id,
         brand_user_id=test_brand_user.id,
         showhost_user_id=test_showhost_user.id,
     )
@@ -139,7 +156,7 @@ def test_ensure_chat_room_update_application_id(
     application_id = str(uuid.uuid4())
     room2 = ensure_chat_room(
         db_session,
-        campaign_id=test_campaign_id,
+        campaign_id=test_campaign.id,
         brand_user_id=test_brand_user.id,
         showhost_user_id=test_showhost_user.id,
         application_id=application_id,

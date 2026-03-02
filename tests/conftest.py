@@ -2,6 +2,11 @@
 pytest 설정 및 공통 픽스처
 """
 
+import os
+
+# 테스트 실행 시 rate limit 비활성화 (app import 전에 설정)
+os.environ["TESTING"] = "true"
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

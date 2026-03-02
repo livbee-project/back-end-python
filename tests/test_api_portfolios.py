@@ -32,7 +32,7 @@ def test_get_portfolios_list(client):
     assert response.status_code == 200
     data = response.json()
     assert data["ok"]
-    assert "data" in data["data"]
+    assert "items" in data["data"]
 
 
 def test_create_portfolio_success(client, showhost_user_token):
@@ -40,7 +40,12 @@ def test_create_portfolio_success(client, showhost_user_token):
     response = client.post(
         "/api/v1/portfolios",
         headers={"Authorization": f"Bearer {showhost_user_token}"},
-        json={"nickname": "Test Model", "oneLineIntro": "Test intro", "status": "published"},
+        json={
+            "nickname": "Test Model",
+            "oneLineIntro": "Test intro",
+            "status": "published",
+            "registrationType": "model",
+        },
     )
 
     assert response.status_code == 201
@@ -51,13 +56,20 @@ def test_create_portfolio_success(client, showhost_user_token):
 
 def test_get_portfolio_by_id(client, showhost_user_token):
     """포트폴리오 상세 조회 테스트"""
-    # 포트폴리오 생성
+    # 포트폴리오 생성 (public_scope 전체공개, status published 필요)
     create_response = client.post(
         "/api/v1/portfolios",
         headers={"Authorization": f"Bearer {showhost_user_token}"},
-        json={"nickname": "Test Model", "oneLineIntro": "Test intro", "status": "published"},
+        json={
+            "nickname": "Test Model",
+            "oneLineIntro": "Test intro",
+            "status": "published",
+            "registrationType": "model",
+            "publicScope": "전체공개",
+        },
     )
 
+    assert create_response.status_code == 201
     portfolio_id = create_response.json()["data"]["data"]["id"]
 
     # 조회
@@ -75,10 +87,15 @@ def test_get_my_portfolios(client, showhost_user_token):
     client.post(
         "/api/v1/portfolios",
         headers={"Authorization": f"Bearer {showhost_user_token}"},
-        json={"nickname": "Test Model", "oneLineIntro": "Test intro", "status": "published"},
+        json={
+            "nickname": "Test Model",
+            "oneLineIntro": "Test intro",
+            "status": "published",
+            "registrationType": "model",
+        },
     )
 
-    # 조회
+    # 조회 (내 포트폴리오는 items 반환)
     response = client.get(
         "/api/v1/portfolios/my/list", headers={"Authorization": f"Bearer {showhost_user_token}"}
     )
@@ -86,4 +103,5 @@ def test_get_my_portfolios(client, showhost_user_token):
     assert response.status_code == 200
     data = response.json()
     assert data["ok"]
-    assert len(data["data"]["data"]) >= 1
+    assert "items" in data["data"]
+    assert len(data["data"]["items"]) >= 1

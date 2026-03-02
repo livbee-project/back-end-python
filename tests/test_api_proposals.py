@@ -54,9 +54,15 @@ def test_portfolio(client, showhost_user_token):
     response = client.post(
         "/api/v1/portfolios",
         headers={"Authorization": f"Bearer {showhost_user_token}"},
-        json={"nickname": "Test Model", "oneLineIntro": "Test intro", "status": "published"},
+        json={
+            "nickname": "Test Model",
+            "oneLineIntro": "Test intro",
+            "status": "published",
+            "registrationType": "model",
+        },
     )
 
+    assert response.status_code == 201, f"포트폴리오 생성 실패: {response.json()}"
     return response.json()["data"]["data"]
 
 
@@ -78,7 +84,7 @@ def test_create_proposal_success(client, brand_user_token, test_portfolio):
     assert response.status_code == 201
     data = response.json()
     assert data["ok"]
-    assert "data" in data["data"]
+    assert "message" in data["data"]
 
 
 def test_get_sent_proposals(client, brand_user_token, test_portfolio):
@@ -95,7 +101,7 @@ def test_get_sent_proposals(client, brand_user_token, test_portfolio):
         },
     )
 
-    # 조회
+    # 조회 (items 반환)
     response = client.get(
         "/api/v1/proposals/sent", headers={"Authorization": f"Bearer {brand_user_token}"}
     )
@@ -103,7 +109,8 @@ def test_get_sent_proposals(client, brand_user_token, test_portfolio):
     assert response.status_code == 200
     data = response.json()
     assert data["ok"]
-    assert len(data["data"]["data"]) >= 1
+    assert "items" in data["data"]
+    assert len(data["data"]["items"]) >= 1
 
 
 def test_get_received_proposals(client, brand_user_token, showhost_user_token, test_portfolio):
@@ -120,7 +127,7 @@ def test_get_received_proposals(client, brand_user_token, showhost_user_token, t
         },
     )
 
-    # 조회
+    # 조회 (items 반환)
     response = client.get(
         "/api/v1/proposals/received", headers={"Authorization": f"Bearer {showhost_user_token}"}
     )
@@ -128,4 +135,5 @@ def test_get_received_proposals(client, brand_user_token, showhost_user_token, t
     assert response.status_code == 200
     data = response.json()
     assert data["ok"]
-    assert len(data["data"]["data"]) >= 1
+    assert "items" in data["data"]
+    assert len(data["data"]["items"]) >= 1

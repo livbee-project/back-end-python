@@ -238,6 +238,7 @@ def update_application_status(
     )
 
     application.status = new_status
+    db.flush()
     db.refresh(application)
 
     return application

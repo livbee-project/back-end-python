@@ -132,6 +132,7 @@ def update_studio(
         if value is not None:
             setattr(studio, key, value)
 
+    db.flush()
     db.refresh(studio)
 
     return studio

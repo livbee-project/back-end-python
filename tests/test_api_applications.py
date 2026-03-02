@@ -52,22 +52,32 @@ def showhost_user_token(client):
     return response.json()["data"]["token"]
 
 
+def _minimal_campaign_payload(shoot_date: date, close_at: date):
+    """CampaignCreate 필수 필드를 포함한 최소 payload (test_api_campaigns와 동일)"""
+    return {
+        "title": "Test Campaign",
+        "content": "Test content",
+        "brandName": "Test Brand",
+        "shootDate": shoot_date.isoformat(),
+        "closeAt": close_at.isoformat(),
+        "startTime": "09:00",
+        "endTime": "18:00",
+        "isPublic": True,
+    }
+
+
 @pytest.fixture
 def test_campaign(client, brand_user_token):
     """테스트용 캠페인 생성"""
+    shoot_date = date.today() + timedelta(days=14)
+    close_at = date.today() + timedelta(days=7)
     response = client.post(
         "/api/v1/campaigns",
         headers={"Authorization": f"Bearer {brand_user_token}"},
-        json={
-            "title": "Test Campaign",
-            "content": "Test content",
-            "brandName": "Test Brand",
-            "closeAt": (date.today() + timedelta(days=7)).isoformat(),
-            "isPublic": True,
-        },
+        json=_minimal_campaign_payload(shoot_date, close_at),
     )
 
-    return response.json()["data"]
+    return response.json()["data"]["data"]
 
 
 def test_create_application_success(client, showhost_user_token, test_campaign):
@@ -96,7 +106,7 @@ def test_get_my_application(client, showhost_user_token, test_campaign):
 
     # 조회
     response = client.get(
-        f"/api/v1/applications/mine?campaignId={test_campaign['id']}",
+        f"/api/v1/applications/mine?campaign_id={test_campaign['id']}",
         headers={"Authorization": f"Bearer {showhost_user_token}"},
     )
 

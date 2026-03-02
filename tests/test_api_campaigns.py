@@ -49,7 +49,7 @@ def test_get_campaigns_list(client):
     assert response.status_code == 200
     data = response.json()
     assert data["ok"]
-    assert "data" in data["data"]
+    assert "items" in data["data"]
 
 
 def test_create_campaign_success(client, brand_user_token):
@@ -100,13 +100,13 @@ def test_get_my_campaigns(client, brand_user_token):
     )
 
     response = client.get(
-        "/api/v1/campaigns/my", headers={"Authorization": f"Bearer {brand_user_token}"}
+        "/api/v1/campaigns/mine", headers={"Authorization": f"Bearer {brand_user_token}"}
     )
 
     assert response.status_code == 200
     data = response.json()
     assert data["ok"]
-    assert len(data["data"]["data"]) >= 1
+    assert len(data["data"]["items"]) >= 1
 
 
 def test_create_campaign_date_validation_close_at_after_shoot_date(client, brand_user_token):

@@ -68,6 +68,7 @@ def ensure_chat_room(
         user_id=showhost_user_id,
         role=ChatParticipantRole.SHOWHOST,
     )
+    db.flush()
     return room
 
 

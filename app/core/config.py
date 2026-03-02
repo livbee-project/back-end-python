@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     # 환경 설정
     ENVIRONMENT: str = "development"
     NODE_ENV: str = "development"
+    TESTING: bool = False  # 테스트 실행 시 rate limit 등 비활성화
 
     # CORS 설정
     CORS_ORIGINS: Optional[str] = (

@@ -116,6 +116,7 @@ def update_news(
     if image_url is not None:
         news_item.image_url = image_url
 
+    db.flush()
     db.refresh(news_item)
 
     return news_item
@@ -134,3 +135,4 @@ def delete_news(db: Session, news_id: str) -> None:
     """
     news_item = get_news_by_id(db, news_id)
     db.delete(news_item)
+    db.flush()

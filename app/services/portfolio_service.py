@@ -376,6 +376,7 @@ def update_portfolio(
             if key in portfolio_fields:
                 setattr(portfolio, key, value)
 
+    db.flush()
     db.refresh(portfolio)
 
     return portfolio
@@ -398,3 +399,4 @@ def delete_portfolio(
     """
     portfolio = get_portfolio_by_id(db, portfolio_id, user_id, user_role)
     db.delete(portfolio)
+    db.flush()

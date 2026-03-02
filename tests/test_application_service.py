@@ -57,7 +57,11 @@ def test_campaign(db_session, test_brand_user):
         content="Test content",
         brand_name="Test Brand",
         created_by=test_brand_user.id,
+        shoot_date=date.today() + timedelta(days=14),
         close_at=date.today() + timedelta(days=7),
+        duration_hours=8,
+        start_time="09:00",
+        end_time="18:00",
         is_public=True,
     )
     db_session.add(campaign)

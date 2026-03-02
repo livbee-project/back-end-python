@@ -7,16 +7,14 @@ import pytest
 
 @pytest.fixture
 def admin_user_token(client):
-    """관리자 사용자 토큰 생성"""
-    # 일반 사용자로 회원가입 (실제로는 admin 역할이 필요하지만 테스트용)
+    """뉴스 생성용 쇼호스트 사용자 토큰 생성"""
     client.post(
         "/api/v1/users/signup",
         json={
             "name": "Admin User",
             "email": "admin@example.com",
             "password": "password123",
-            "role": "brand",
-            "brandName": "Admin Brand",
+            "role": "showhost",
         },
     )
 
@@ -34,7 +32,7 @@ def test_get_news_list(client):
     assert response.status_code == 200
     data = response.json()
     assert data["ok"]
-    assert "data" in data["data"]
+    assert "items" in data["data"]
 
 
 def test_get_news_by_id(client, admin_user_token):
@@ -46,13 +44,15 @@ def test_get_news_by_id(client, admin_user_token):
         json={"title": "Test News", "content": "Test content"},
     )
 
-    if create_response.status_code == 201:
-        news_id = create_response.json()["data"]["data"]["id"]
+    if create_response.status_code != 201:
+        pytest.skip(f"뉴스 생성 실패: {create_response.status_code} - {create_response.json()}")
 
-        # 조회
-        response = client.get(f"/api/v1/news/{news_id}")
+    news_id = create_response.json()["data"]["data"]["id"]
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["ok"]
-        assert data["data"]["data"]["id"] == news_id
+    # 조회
+    response = client.get(f"/api/v1/news/{news_id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"]
+    assert data["data"]["data"]["id"] == news_id

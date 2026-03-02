@@ -54,8 +54,9 @@ def test_portfolio(db_session, test_showhost_user):
     portfolio = Portfolio(
         id=str(uuid.uuid4()),
         user_id=test_showhost_user.id,
-        name="Test Portfolio",
-        is_published=True,
+        nickname="Test Portfolio",
+        status="published",
+        public_scope="전체공개",
     )
     db_session.add(portfolio)
     db_session.flush()
