@@ -33,9 +33,7 @@ class StringArray(TypeDecorator[List[str]]):
             return value
         return json.dumps(value)
 
-    def process_result_value(
-        self, value: str | List[str] | None, dialect: Any
-    ) -> List[str] | None:
+    def process_result_value(self, value: str | List[str] | None, dialect: Any) -> List[str] | None:
         if value is None:
             return None
         if dialect.name == "postgresql":
