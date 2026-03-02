@@ -91,9 +91,7 @@ def test_ensure_chat_room_create_new(
     assert test_showhost_user.id in participant_user_ids
 
 
-def test_ensure_chat_room_existing(
-    db_session, test_brand_user, test_showhost_user, test_campaign
-):
+def test_ensure_chat_room_existing(db_session, test_brand_user, test_showhost_user, test_campaign):
     """기존 채팅방 조회 테스트"""
     # 첫 번째 생성
     room1 = ensure_chat_room(
