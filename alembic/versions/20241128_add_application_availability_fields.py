@@ -26,4 +26,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_column("applications", "available_time")
     op.drop_column("applications", "available_date")
-

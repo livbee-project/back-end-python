@@ -25,4 +25,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.add_column("campaigns", sa.Column("product_url", sa.String(), nullable=True))
     op.add_column("campaigns", sa.Column("live_stream_url", sa.String(), nullable=True))
-

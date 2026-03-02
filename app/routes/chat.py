@@ -1,64 +1,44 @@
 """
 채팅 REST & WebSocket 라우트
 """
+
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional, List
 import uuid
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
 
 from fastapi import (
     APIRouter,
     Depends,
     Query,
-    status,
     WebSocket,
     WebSocketDisconnect,
+    status,
 )
-from starlette.websockets import WebSocketState
-from pydantic import BaseModel, Field
-from sqlalchemy import func, desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload
+from starlette.websockets import WebSocketState
 
-from app.core.database import get_db, SessionLocal
+from app.core.database import SessionLocal, get_db
 from app.core.security import decode_token
 from app.middleware.role import require_role
-from app.models.user import User, UserRole
-from app.models.campaign import Campaign
 from app.models.application import Application, ApplicationStatus
-from app.models.portfolio import Portfolio
+from app.models.campaign import Campaign
+from app.models.chat import ChatMessage, ChatMessageType, ChatParticipant, ChatRoom
 from app.models.model import Model
-from app.models.chat import ChatRoom, ChatParticipant, ChatMessage, ChatMessageType, ChatRoomStatus
+from app.models.portfolio import Portfolio
+from app.models.user import User, UserRole
+from app.schemas.chat import (
+    ChatMessageCreateRequest,
+    ChatReadRequest,
+    ChatRoomCreateRequest,
+)
 from app.services.chat_service import ensure_chat_room
-from app.utils.response import success_response, fail_response
+from app.utils.response import fail_response, success_response
 
 router = APIRouter(prefix="/chat", tags=["chat"])
-
-
-class ChatRoomCreateRequest(BaseModel):
-    campaign_id: str = Field(..., alias="campaignId")
-    showhost_user_id: Optional[str] = Field(None, alias="showhostUserId")
-    application_id: Optional[str] = Field(None, alias="applicationId")
-
-    class Config:
-        populate_by_name = True
-
-
-class ChatMessageCreateRequest(BaseModel):
-    content: str
-    message_type: Optional[ChatMessageType] = Field(ChatMessageType.TEXT, alias="messageType")
-    metadata: Optional[Dict[str, Any]] = None
-
-    class Config:
-        populate_by_name = True
-
-
-class ChatReadRequest(BaseModel):
-    last_message_id: Optional[str] = Field(None, alias="lastMessageId")
-
-    class Config:
-        populate_by_name = True
 
 
 class ChatConnectionManager:
@@ -147,7 +127,11 @@ def _message_payload(message: ChatMessage) -> Dict[str, Any]:
         "id": message.id,
         "roomId": message.room_id,
         "senderId": message.sender_id,
-        "messageType": message.message_type.value if hasattr(message.message_type, "value") else message.message_type,
+        "messageType": (
+            message.message_type.value
+            if hasattr(message.message_type, "value")
+            else message.message_type
+        ),
         "content": message.content,
         "metadata": message.extra_metadata,
         "status": message.status.value if hasattr(message.status, "value") else message.status,
@@ -164,7 +148,7 @@ def _application_payload(
     """지원서 정보를 응답 형식으로 변환"""
     if not application:
         return None
-    
+
     # 포트폴리오/모델 정보 조회
     portfolio_title = None
     if application.portfolio_id:
@@ -179,7 +163,7 @@ def _application_payload(
         portfolio = db.query(Portfolio).filter(Portfolio.id == application.profile_ref).first()
         if portfolio:
             portfolio_title = portfolio.nickname or portfolio.one_line_intro
-    
+
     # 상태 매핑 (ApplicationStatus -> 프론트엔드 기대 형식)
     status_map = {
         ApplicationStatus.SUBMITTED: "pending",
@@ -188,14 +172,18 @@ def _application_payload(
         ApplicationStatus.ACCEPTED: "accepted",
         ApplicationStatus.REJECTED: "rejected",
     }
-    status_value = application.status.value if hasattr(application.status, "value") else application.status
+    status_value = (
+        application.status.value if hasattr(application.status, "value") else application.status
+    )
     mapped_status = status_map.get(application.status, "pending")
-    
+
     return {
         "applicationId": application.id,
         "campaignTitle": application.campaign.title if application.campaign else None,
         "portfolioTitle": portfolio_title,
-        "availableDate": application.available_date.isoformat() if application.available_date else None,
+        "availableDate": (
+            application.available_date.isoformat() if application.available_date else None
+        ),
         "availableTime": application.available_time,
         "message": application.message,
         "status": mapped_status,
@@ -227,13 +215,19 @@ def _room_payload(
         "unreadCount": unread_count,
         "me": {
             "userId": current_user_id,
-            "role": me.role.value if me and hasattr(me.role, "value") else (me.role if me else None),
+            "role": (
+                me.role.value if me and hasattr(me.role, "value") else (me.role if me else None)
+            ),
             "lastReadMessageId": me.last_read_message_id if me else None,
             "lastReadAt": me.last_read_at.isoformat() if me and me.last_read_at else None,
         },
         "counterpart": {
             "userId": other.user_id if other else None,
-            "role": other.role.value if other and hasattr(other.role, "value") else (other.role if other else None),
+            "role": (
+                other.role.value
+                if other and hasattr(other.role, "value")
+                else (other.role if other else None)
+            ),
         },
     }
 
@@ -352,7 +346,7 @@ async def get_chat_room_history(
         "items": items,
         "pagination": {"page": page, "limit": limit, "total": total},
     }
-    
+
     if application_payload:
         response_data["application"] = application_payload
 
@@ -533,23 +527,27 @@ async def delete_chat_room(
     채팅방 삭제 (하드 삭제: DB 레코드 완전 삭제)
     """
     user_id = current_user.get("sub")
-    
+
     # 채팅방 조회 및 권한 확인
     room = _load_room(db, room_id)
     if not room:
-        return fail_response("ROOM_NOT_FOUND", status.HTTP_404_NOT_FOUND, additional_data={"code": "ROOM_NOT_FOUND"})
-    
+        return fail_response(
+            "ROOM_NOT_FOUND", status.HTTP_404_NOT_FOUND, additional_data={"code": "ROOM_NOT_FOUND"}
+        )
+
     # 참여자 확인 (권한 체크)
     participant = _get_participant(db, room_id, user_id)
     if not participant:
-        return fail_response("FORBIDDEN", status.HTTP_403_FORBIDDEN, additional_data={"code": "FORBIDDEN"})
-    
+        return fail_response(
+            "FORBIDDEN", status.HTTP_403_FORBIDDEN, additional_data={"code": "FORBIDDEN"}
+        )
+
     # 참여자 정보 저장 (WebSocket 이벤트 전송용)
     participant_user_ids = [p.user_id for p in room.participants]
-    
+
     # 하드 삭제: DB 레코드 완전 삭제 (CASCADE로 메시지, 참가자도 자동 삭제됨)
     db.delete(room)
-    
+
     # WebSocket 이벤트 브로드캐스트 (삭제 전에 전송)
     await connection_manager.broadcast(
         room_id,
@@ -562,16 +560,18 @@ async def delete_chat_room(
         },
         exclude_user_id=None,
     )
-    
+
     # WebSocket 연결 종료
     # 모든 참여자의 연결을 끊음
     for participant_user_id in participant_user_ids:
         connection_manager.disconnect(room_id, participant_user_id)
-    
-    return success_response({
-        "success": True,
-        "message": "채팅방이 삭제되었습니다.",
-    })
+
+    return success_response(
+        {
+            "success": True,
+            "message": "채팅방이 삭제되었습니다.",
+        }
+    )
 
 
 @router.websocket("/{room_id}")
@@ -614,17 +614,19 @@ async def websocket_chat(room_id: str, websocket: WebSocket):
         db.close()
 
     await connection_manager.connect(room_id, user_id, websocket)
-    await websocket.send_json({"type": "connection", "payload": {"roomId": room_id, "userId": user_id}})
+    await websocket.send_json(
+        {"type": "connection", "payload": {"roomId": room_id, "userId": user_id}}
+    )
 
     try:
         while True:
             data = await websocket.receive_json()
             if data.get("type") == "ping":
-                await websocket.send_json({"type": "pong", "timestamp": datetime.utcnow().isoformat()})
+                await websocket.send_json(
+                    {"type": "pong", "timestamp": datetime.utcnow().isoformat()}
+                )
     except WebSocketDisconnect:
         connection_manager.disconnect(room_id, user_id)
     except Exception:
         connection_manager.disconnect(room_id, user_id)
         await websocket.close(code=1011, reason="Internal error")
-
-

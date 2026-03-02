@@ -88,7 +88,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             exit 0
         fi
     fi
-    
+
     RETRY_COUNT=$((RETRY_COUNT + 1))
     echo "⏳ 재시도 중... ($RETRY_COUNT/$MAX_RETRIES)"
     sleep 3
@@ -99,4 +99,3 @@ echo "📋 컨테이너 로그 확인:"
 docker-compose -f "$COMPOSE_FILE" logs --tail=50
 
 exit 1
-

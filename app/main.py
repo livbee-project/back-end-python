@@ -2,20 +2,23 @@
 FastAPI 메인 애플리케이션
 PostgreSQL 데이터베이스 연결 및 기본 엔드포인트 제공
 """
+
 import sys
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, status
+
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from fastapi import HTTPException
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+
 from app.core.config import settings
 from app.core.database import engine, init_db
-from app.core.logging_config import setup_logging, get_logger
-from app.utils.response import success_response, fail_response
-from app.utils.error_messages import get_error_message
+from app.core.logging_config import get_logger, setup_logging
+from app.core.rate_limit import limiter
+from app.utils.response import fail_response, success_response
 
 # 로깅 설정
 setup_logging()
@@ -30,7 +33,7 @@ async def lifespan(app: FastAPI):
     """
     # 시작 시
     logger.info("🚀 Livbee Backend API 시작 중...")
-    
+
     # 필수 환경변수 검증
     required_vars = [
         ("DB_HOST", "데이터베이스 호스트"),
@@ -39,39 +42,42 @@ async def lifespan(app: FastAPI):
         ("DB_PASSWORD", "데이터베이스 비밀번호"),
         ("JWT_SECRET", "JWT 토큰 서명용 비밀키"),
     ]
-    
+
     missing_vars = []
     for var_name, description in required_vars:
         if not getattr(settings, var_name, None):
             missing_vars.append(f"{var_name}: {description}")
-    
+
     if missing_vars:
         logger.error("❌ 필수 환경 변수가 누락되었습니다:")
         for var in missing_vars:
             logger.error(f"   - {var}")
         logger.error("서버를 시작할 수 없습니다.")
         sys.exit(1)
-    
+
     logger.info("✅ 필수 환경 변수 검증 완료")
-    
+
     # 데이터베이스 연결 테스트 및 테이블 생성
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         logger.info("✅ 데이터베이스 연결 확인 완료")
-        
+
         # 테이블 생성 (모델이 정의된 경우)
-        try:
-            init_db()
-            logger.info("✅ 데이터베이스 테이블 초기화 완료")
-        except Exception as e:
-            logger.warning(f"⚠️ 테이블 초기화 실패 (계속 진행): {e}")
+        # Prod: Alembic으로 마이그레이션 관리 → init_db 스킵
+        # Dev 등: 로컬 개발 편의를 위해 init_db 호출
+        if settings.ENVIRONMENT != "production":
+            try:
+                init_db()
+                logger.info("✅ 데이터베이스 테이블 초기화 완료")
+            except Exception as e:
+                logger.warning(f"⚠️ 테이블 초기화 실패 (계속 진행): {e}")
     except Exception as e:
         logger.warning(f"⚠️ 데이터베이스 연결 실패 (계속 진행): {e}")
         # 연결 실패해도 앱은 시작 (나중에 재시도 가능)
-    
+
     yield
-    
+
     # 종료 시
     logger.info("🛑 Livbee Backend API 종료 중...")
 
@@ -86,40 +92,50 @@ app = FastAPI(
     redoc_url=None,
 )
 
+# Rate Limiting 설정 (slowapi)
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    """Rate limit 초과 시 429 응답 (fail_response 형식)"""
+    return fail_response("RATE_LIMIT_EXCEEDED", status.HTTP_429_TOO_MANY_REQUESTS)
+
 
 # Swagger UI에 JWT 인증 추가
 def custom_openapi():
     """OpenAPI 스키마 커스터마이징 - JWT 인증 추가"""
     if app.openapi_schema:
         return app.openapi_schema
-    
+
     from fastapi.openapi.utils import get_openapi
-    
+
     openapi_schema = get_openapi(
         title=app.title,
         version=app.version,
         description=app.description,
         routes=app.routes,
     )
-    
+
     # JWT Bearer 인증 스키마 추가
     openapi_schema["components"]["securitySchemes"] = {
         "BearerAuth": {
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": "JWT 토큰을 입력하세요. 로그인 API에서 받은 토큰을 사용합니다."
+            "description": "JWT 토큰을 입력하세요. 로그인 API에서 받은 토큰을 사용합니다.",
         }
     }
-    
+
     # 모든 엔드포인트에 기본 보안 적용 (인증이 필요한 경우)
     # 실제로는 각 라우터에서 security를 지정하므로 여기서는 스키마만 정의
-    
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
 
 app.openapi = custom_openapi
+
 
 # CORS 설정
 def get_cors_origins():
@@ -133,7 +149,7 @@ def get_cors_origins():
         origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",")]
         logger.info(f"✅ CORS origins from env: {origins}")
         return origins
-    
+
     # 기본값: 개발 환경용 origin 목록
     default_origins = [
         "http://localhost:5173",  # Vite 기본 포트
@@ -142,17 +158,20 @@ def get_cors_origins():
         "https://dev-api.livbee.co.kr",  # 개발 API 서버
         "https://dev.livbee.co.kr",  # 개발 프론트엔드
     ]
-    
+
     # 프로덕션 환경인 경우 프로덕션 도메인 추가
     if settings.ENVIRONMENT == "production":
-        default_origins.extend([
-            "https://api.livbee.co.kr",
-            "https://livbee.co.kr",
-            "https://www.livbee.co.kr",
-        ])
-    
+        default_origins.extend(
+            [
+                "https://api.livbee.co.kr",
+                "https://livbee.co.kr",
+                "https://www.livbee.co.kr",
+            ]
+        )
+
     logger.info(f"✅ CORS origins (default): {default_origins}")
     return default_origins
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -195,9 +214,16 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """요청 검증 오류 처리"""
-    # CORS는 미들웨어에서 처리되므로 별도 헤더 추가 불필요
-    return fail_response("VALIDATION_FAILED", status.HTTP_422_UNPROCESSABLE_ENTITY)
+    """요청 검증 오류 처리 - 필드별 오류(loc, msg, type) 포함 (민감정보 아님)"""
+    errors = [
+        {"loc": list(e.get("loc", ())), "msg": e.get("msg", ""), "type": e.get("type", "")}
+        for e in exc.errors()
+    ]
+    return fail_response(
+        "VALIDATION_FAILED",
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        additional_data={"errors": errors},
+    )
 
 
 @app.exception_handler(SQLAlchemyError)
@@ -217,7 +243,18 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 # 라우터 등록
-from app.routes import users, portfolios, models, campaigns, applications, proposals, news, studios, chat, uploads
+from app.routes import (
+    applications,
+    campaigns,
+    chat,
+    models,
+    news,
+    portfolios,
+    proposals,
+    studios,
+    uploads,
+    users,
+)
 
 app.include_router(users.router, prefix=settings.API_BASE_PATH)
 app.include_router(portfolios.router, prefix=settings.API_BASE_PATH)
@@ -229,6 +266,7 @@ app.include_router(news.router, prefix=settings.API_BASE_PATH)
 app.include_router(studios.router, prefix=settings.API_BASE_PATH)
 app.include_router(chat.router, prefix=settings.API_BASE_PATH)
 app.include_router(uploads.router, prefix=settings.API_BASE_PATH)
+
 
 # 기본 라우트
 @app.get("/")
@@ -263,12 +301,10 @@ async def db_test():
         with engine.connect() as conn:
             result = conn.execute(text("SELECT version();"))
             db_version = result.fetchone()[0] if result else "Unknown"
-        
-        return success_response({
-            "message": "데이터베이스 연결 성공",
-            "database_version": db_version
-        })
+
+        return success_response(
+            {"message": "데이터베이스 연결 성공", "database_version": db_version}
+        )
     except Exception as e:
         logger.error(f"Database connection test failed: {e}")
         return fail_response("INTERNAL_ERROR", status.HTTP_500_INTERNAL_SERVER_ERROR)
-

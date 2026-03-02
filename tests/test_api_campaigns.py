@@ -1,9 +1,10 @@
 """
 캠페인 API 엔드포인트 통합 테스트
 """
-import pytest
+
 from datetime import date, timedelta
-from app.models.user import UserRole
+
+import pytest
 
 
 @pytest.fixture
@@ -16,18 +17,14 @@ def brand_user_token(client):
             "email": "brand@example.com",
             "password": "password123",
             "role": "brand",
-            "brandName": "Test Brand"
-        }
+            "brandName": "Test Brand",
+        },
     )
-    
+
     response = client.post(
-        "/api/v1/users/login",
-        json={
-            "email": "brand@example.com",
-            "password": "password123"
-        }
+        "/api/v1/users/login", json={"email": "brand@example.com", "password": "password123"}
     )
-    
+
     return response.json()["data"]["token"]
 
 
@@ -41,14 +38,14 @@ def _minimal_campaign_payload(shoot_date: date, close_at: date):
         "closeAt": close_at.isoformat(),
         "startTime": "09:00",
         "endTime": "18:00",
-        "isPublic": True
+        "isPublic": True,
     }
 
 
 def test_get_campaigns_list(client):
     """캠페인 목록 조회 테스트"""
     response = client.get("/api/v1/campaigns")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["ok"] == True
@@ -62,9 +59,9 @@ def test_create_campaign_success(client, brand_user_token):
     response = client.post(
         "/api/v1/campaigns",
         headers={"Authorization": f"Bearer {brand_user_token}"},
-        json=_minimal_campaign_payload(shoot_date, close_at)
+        json=_minimal_campaign_payload(shoot_date, close_at),
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["ok"] == True
@@ -79,13 +76,13 @@ def test_get_campaign_by_id(client, brand_user_token):
     create_response = client.post(
         "/api/v1/campaigns",
         headers={"Authorization": f"Bearer {brand_user_token}"},
-        json=_minimal_campaign_payload(shoot_date, close_at)
+        json=_minimal_campaign_payload(shoot_date, close_at),
     )
-    
+
     campaign_id = create_response.json()["data"]["data"]["id"]
-    
+
     response = client.get(f"/api/v1/campaigns/{campaign_id}")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["ok"] == True
@@ -99,14 +96,13 @@ def test_get_my_campaigns(client, brand_user_token):
     client.post(
         "/api/v1/campaigns",
         headers={"Authorization": f"Bearer {brand_user_token}"},
-        json=_minimal_campaign_payload(shoot_date, close_at)
+        json=_minimal_campaign_payload(shoot_date, close_at),
     )
-    
+
     response = client.get(
-        "/api/v1/campaigns/my",
-        headers={"Authorization": f"Bearer {brand_user_token}"}
+        "/api/v1/campaigns/my", headers={"Authorization": f"Bearer {brand_user_token}"}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["ok"] == True
@@ -118,13 +114,11 @@ def test_create_campaign_date_validation_close_at_after_shoot_date(client, brand
     shoot_date = date.today() + timedelta(days=7)
     close_at = date.today() + timedelta(days=14)
     payload = _minimal_campaign_payload(shoot_date, close_at)
-    
+
     response = client.post(
-        "/api/v1/campaigns",
-        headers={"Authorization": f"Bearer {brand_user_token}"},
-        json=payload
+        "/api/v1/campaigns", headers={"Authorization": f"Bearer {brand_user_token}"}, json=payload
     )
-    
+
     assert response.status_code == 400
     data = response.json()
     assert "마감일은 촬영일보다 이전이어야 합니다" in data.get("userMessage", "")
@@ -134,11 +128,9 @@ def test_create_campaign_date_validation_same_day(client, brand_user_token):
     """closeAt == shootDate (같은 날) 인 경우 400 에러 검증"""
     same_day = date.today() + timedelta(days=14)
     payload = _minimal_campaign_payload(shoot_date=same_day, close_at=same_day)
-    
+
     response = client.post(
-        "/api/v1/campaigns",
-        headers={"Authorization": f"Bearer {brand_user_token}"},
-        json=payload
+        "/api/v1/campaigns", headers={"Authorization": f"Bearer {brand_user_token}"}, json=payload
     )
-    
+
     assert response.status_code == 400

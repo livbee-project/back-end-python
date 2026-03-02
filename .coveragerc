@@ -1,6 +1,6 @@
 [run]
 source = app
-omit = 
+omit =
     */tests/*
     */alembic/*
     */venv/*
@@ -23,4 +23,3 @@ skip_covered = False
 
 [html]
 directory = htmlcov
-

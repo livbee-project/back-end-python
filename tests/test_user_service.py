@@ -1,15 +1,16 @@
 """
 사용자 서비스 단위 테스트
 """
+
 import pytest
 from fastapi import HTTPException
+
+from app.models.user import UserRole
 from app.services.user_service import (
+    authenticate_user,
     create_user,
     get_user_by_email,
-    get_user_by_id,
-    authenticate_user
 )
-from app.models.user import User, UserRole
 
 
 def test_create_user_success(db_session, test_user_data):
@@ -19,9 +20,9 @@ def test_create_user_success(db_session, test_user_data):
         name=test_user_data["name"],
         email=test_user_data["email"],
         password=test_user_data["password"],
-        role=UserRole.SHOWHOST
+        role=UserRole.SHOWHOST,
     )
-    
+
     assert user is not None
     assert user.email == test_user_data["email"]
     assert user.name == test_user_data["name"]
@@ -37,9 +38,9 @@ def test_create_user_duplicate_email(db_session, test_user_data):
         name=test_user_data["name"],
         email=test_user_data["email"],
         password=test_user_data["password"],
-        role=UserRole.SHOWHOST
+        role=UserRole.SHOWHOST,
     )
-    
+
     # 중복 이메일로 사용자 생성 시도
     with pytest.raises(HTTPException) as exc_info:
         create_user(
@@ -47,9 +48,9 @@ def test_create_user_duplicate_email(db_session, test_user_data):
             name="Another User",
             email=test_user_data["email"],
             password="password123",
-            role=UserRole.SHOWHOST
+            role=UserRole.SHOWHOST,
         )
-    
+
     assert exc_info.value.status_code == 409
 
 
@@ -61,12 +62,12 @@ def test_get_user_by_email_success(db_session, test_user_data):
         name=test_user_data["name"],
         email=test_user_data["email"],
         password=test_user_data["password"],
-        role=UserRole.SHOWHOST
+        role=UserRole.SHOWHOST,
     )
-    
+
     # 이메일로 조회
     user = get_user_by_email(db_session, test_user_data["email"])
-    
+
     assert user is not None
     assert user.id == created_user.id
     assert user.email == test_user_data["email"]
@@ -86,16 +87,14 @@ def test_authenticate_user_success(db_session, test_user_data):
         name=test_user_data["name"],
         email=test_user_data["email"],
         password=test_user_data["password"],
-        role=UserRole.SHOWHOST
+        role=UserRole.SHOWHOST,
     )
-    
+
     # 인증
     user, token = authenticate_user(
-        db_session,
-        email=test_user_data["email"],
-        password=test_user_data["password"]
+        db_session, email=test_user_data["email"], password=test_user_data["password"]
     )
-    
+
     assert user is not None
     assert token is not None
     assert user.email == test_user_data["email"]
@@ -109,16 +108,11 @@ def test_authenticate_user_invalid_credentials(db_session, test_user_data):
         name=test_user_data["name"],
         email=test_user_data["email"],
         password=test_user_data["password"],
-        role=UserRole.SHOWHOST
+        role=UserRole.SHOWHOST,
     )
-    
+
     # 잘못된 비밀번호로 인증 시도
     with pytest.raises(HTTPException) as exc_info:
-        authenticate_user(
-            db_session,
-            email=test_user_data["email"],
-            password="wrongpassword"
-        )
-    
-    assert exc_info.value.status_code == 401
+        authenticate_user(db_session, email=test_user_data["email"], password="wrongpassword")
 
+    assert exc_info.value.status_code == 401

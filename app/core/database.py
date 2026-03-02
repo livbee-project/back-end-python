@@ -2,13 +2,15 @@
 PostgreSQL 데이터베이스 연결 관리
 SQLAlchemy를 사용한 연결 풀 관리
 """
+
 from contextlib import contextmanager
 from typing import Generator
+
 from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import NullPool
-from sqlalchemy.exc import SQLAlchemyError
+
 from app.core.config import settings
 from app.core.logging_config import get_logger
 
@@ -67,7 +69,7 @@ def get_db_transaction() -> Generator[Session, None, None]:
     """
     트랜잭션 컨텍스트 매니저
     명시적 트랜잭션 관리가 필요한 경우 사용
-    
+
     Usage:
         with get_db_transaction() as db:
             # 작업 수행
@@ -98,5 +100,5 @@ def init_db():
     # 모든 모델 import (테이블 생성용)
     # 모델들이 Base를 상속받아 자동으로 메타데이터에 등록됨
     import app.models  # noqa: F401
-    Base.metadata.create_all(bind=engine)
 
+    Base.metadata.create_all(bind=engine)

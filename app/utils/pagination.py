@@ -1,6 +1,7 @@
 """
 페이지네이션 유틸리티
 """
+
 from math import ceil
 from typing import Any, Dict, Tuple
 
@@ -49,4 +50,3 @@ def build_paginated_payload(items: Any, total_items: int, page: int, limit: int)
     payload = {"items": items}
     payload.update(get_pagination_meta(total_items, page, limit))
     return payload
-

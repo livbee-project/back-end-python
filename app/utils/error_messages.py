@@ -2,7 +2,8 @@
 에러 메시지 정의
 사용자 친화적인 에러 메시지와 시스템 메시지 매핑
 """
-from typing import Dict, Any
+
+from typing import Any, Dict
 
 ErrorDefinition = Dict[str, Any]
 
@@ -28,7 +29,6 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Invalid ID format",
         "userMessage": "올바르지 않은 ID 형식입니다.",
     },
-    
     # --- 인증 (Users) ---
     "INVALID_CREDENTIALS": {
         "message": "Invalid credentials",
@@ -62,11 +62,14 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Required fields are missing",
         "userMessage": "필수 입력값이 누락되었습니다.",
     },
+    "RATE_LIMIT_EXCEEDED": {
+        "message": "Too many requests",
+        "userMessage": "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.",
+    },
     "VALIDATION_INVALID_ROLE": {
         "message": "Invalid role value",
         "userMessage": "역할 값이 올바르지 않습니다.",
     },
-    
     # --- 지원 (Applications) ---
     "ALREADY_APPLIED": {
         "message": "Duplicate application submission",
@@ -80,7 +83,6 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Campaign is not a recruit type",
         "userMessage": "모집형 캠페인에만 지원할 수 있습니다.",
     },
-    
     # --- 캠페인 (Campaigns) ---
     "COVER_IMAGE_REQUIRED": {
         "message": "Cover image is required when publishing",
@@ -94,7 +96,6 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Forbidden to delete recruit",
         "userMessage": "공고를 삭제할 권한이 없습니다.",
     },
-    
     # --- 포트폴리오 (Portfolios) ---
     "PORTFOLIO_FORBIDDEN_EDIT": {
         "message": "Forbidden to edit portfolio",
@@ -124,7 +125,6 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Too many gallery images",
         "userMessage": "갤러리 이미지가 너무 많습니다.",
     },
-
     # --- 채팅 (Chat) ---
     "CHAT_ROOM_NOT_FOUND": {
         "message": "Chat room not found",
@@ -156,10 +156,10 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
 def get_error_message(error_key: str) -> ErrorDefinition:
     """
     에러 키에 해당하는 에러 메시지 반환
-    
+
     Args:
         error_key: 에러 키 (예: "NOT_FOUND")
-    
+
     Returns:
         에러 메시지 딕셔너리
     """
@@ -168,6 +168,5 @@ def get_error_message(error_key: str) -> ErrorDefinition:
         {
             "message": "Unknown error",
             "userMessage": "알 수 없는 오류가 발생했습니다.",
-        }
+        },
     )
-

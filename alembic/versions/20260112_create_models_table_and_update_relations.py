@@ -114,7 +114,7 @@ def downgrade() -> None:
 
     # proposals 테이블의 target_portfolio_id를 다시 NOT NULL로 변경
     op.alter_column("proposals", "target_portfolio_id", nullable=False)
-    
+
     # proposals 테이블의 target_model_id 제거
     op.drop_constraint("fk_proposals_target_model_id", "proposals", type_="foreignkey")
     op.drop_index(op.f("ix_proposals_target_model_id"), table_name="proposals")

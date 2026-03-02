@@ -1,16 +1,18 @@
 """
 제안 관련 비즈니스 로직 서비스
 """
-from typing import Optional
-from datetime import date
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
-from app.models.proposal import Proposal, ProposalStatus
-from app.models.portfolio import Portfolio
-from app.models.model import Model
-from app.models.user import User
-from app.utils.db_helpers import get_or_404, require_ownership_or_admin
+
 import uuid
+from datetime import date
+from typing import Optional
+
+from sqlalchemy import desc
+from sqlalchemy.orm import Session, joinedload
+
+from app.models.model import Model
+from app.models.portfolio import Portfolio
+from app.models.proposal import Proposal, ProposalStatus
+from app.utils.db_helpers import get_or_404
 
 
 def create_proposal(
@@ -25,11 +27,11 @@ def create_proposal(
     is_fee_negotiable: bool = False,
     shooting_time: Optional[str] = None,
     location: Optional[str] = None,
-    content: Optional[str] = None
+    content: Optional[str] = None,
 ) -> Proposal:
     """
     제안 생성
-    
+
     Args:
         db: 데이터베이스 세션
         proposer_id: 제안자 ID
@@ -43,43 +45,41 @@ def create_proposal(
         shooting_time: 촬영 시간
         location: 장소
         content: 내용
-    
+
     Returns:
         생성된 제안 인스턴스
-    
+
     Raises:
         HTTPException: 포트폴리오/모델을 찾을 수 없는 경우
     """
     target_showhost_id = None
-    
+
     # 포트폴리오 또는 모델 확인
     if target_portfolio_id:
         portfolio = get_or_404(
             db,
             Portfolio,
             lambda q: q.filter(Portfolio.id == target_portfolio_id),
-            error_key="NOT_FOUND"
+            error_key="NOT_FOUND",
         )
         target_showhost_id = portfolio.user_id
     elif target_model_id:
         model = get_or_404(
-            db,
-            Model,
-            lambda q: q.filter(Model.id == target_model_id),
-            error_key="NOT_FOUND"
+            db, Model, lambda q: q.filter(Model.id == target_model_id), error_key="NOT_FOUND"
         )
         target_showhost_id = model.user_id
     else:
         from fastapi import HTTPException, status
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
                 "error": "VALIDATION_ERROR",
                 "message": "포트폴리오 ID 또는 모델 ID 중 하나는 필수입니다.",
                 "userMessage": "포트폴리오 또는 모델을 선택해주세요.",
-            }
+            },
         )
-    
+
     # 제안 생성
     proposal = Proposal(
         id=str(uuid.uuid4()),
@@ -95,13 +95,13 @@ def create_proposal(
         location=location,
         reply_deadline=reply_deadline,
         content=content,
-        status=ProposalStatus.PENDING
+        status=ProposalStatus.PENDING,
     )
-    
+
     db.add(proposal)
     db.flush()  # 세션 변경사항을 DB에 반영 (커밋은 아님)
     db.refresh(proposal)
-    
+
     return proposal
 
 
@@ -110,33 +110,35 @@ def get_sent_proposals(
     proposer_id: str,
     status_filter: Optional[str] = None,
     page: int = 1,
-    limit: int = 10
+    limit: int = 10,
 ) -> tuple[list[Proposal], int]:
     """
     보낸 제안 목록 조회
-    
+
     Args:
         db: 데이터베이스 세션
         proposer_id: 제안자 ID
         status_filter: 상태 필터
         page: 페이지 번호
         limit: 페이지당 항목 수
-    
+
     Returns:
         (제안 리스트, 전체 개수) 튜플
     """
     skip = (page - 1) * limit
-    
-    query = db.query(Proposal).options(
-        joinedload(Proposal.target_showhost)
-    ).filter(Proposal.proposer_id == proposer_id)
-    
+
+    query = (
+        db.query(Proposal)
+        .options(joinedload(Proposal.target_showhost))
+        .filter(Proposal.proposer_id == proposer_id)
+    )
+
     if status_filter:
         query = query.filter(Proposal.status == status_filter)
-    
+
     total_items = query.count()
     proposals = query.order_by(desc(Proposal.created_at)).offset(skip).limit(limit).all()
-    
+
     return proposals, total_items
 
 
@@ -145,64 +147,59 @@ def get_received_proposals(
     showhost_id: str,
     status_filter: Optional[str] = None,
     page: int = 1,
-    limit: int = 10
+    limit: int = 10,
 ) -> tuple[list[Proposal], int]:
     """
     받은 제안 목록 조회
-    
+
     Args:
         db: 데이터베이스 세션
         showhost_id: 쇼호스트 ID
         status_filter: 상태 필터
         page: 페이지 번호
         limit: 페이지당 항목 수
-    
+
     Returns:
         (제안 리스트, 전체 개수) 튜플
     """
     skip = (page - 1) * limit
-    
+
     query = db.query(Proposal).filter(Proposal.target_showhost_id == showhost_id)
-    
+
     if status_filter:
         query = query.filter(Proposal.status == status_filter)
-    
+
     total_items = query.count()
     proposals = query.order_by(desc(Proposal.created_at)).offset(skip).limit(limit).all()
-    
+
     return proposals, total_items
 
 
-def withdraw_proposal(
-    db: Session,
-    proposal_id: str,
-    proposer_id: str
-) -> Proposal:
+def withdraw_proposal(db: Session, proposal_id: str, proposer_id: str) -> Proposal:
     """
     제안 철회
-    
+
     Args:
         db: 데이터베이스 세션
         proposal_id: 제안 ID
         proposer_id: 제안자 ID
-    
+
     Returns:
         철회된 제안 인스턴스
-    
+
     Raises:
         HTTPException: 제안을 찾을 수 없거나 권한이 없거나 상태가 맞지 않는 경우
     """
     proposal = get_or_404(
-        db,
-        Proposal,
-        lambda q: q.filter(Proposal.id == proposal_id),
-        error_key="NOT_FOUND"
+        db, Proposal, lambda q: q.filter(Proposal.id == proposal_id), error_key="NOT_FOUND"
     )
-    
+
     # 소유권 확인
     if proposal.proposer_id != proposer_id:
         from fastapi import HTTPException, status
+
         from app.utils.error_messages import get_error_message
+
         error = get_error_message("FORBIDDEN")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -210,13 +207,15 @@ def withdraw_proposal(
                 "error": "FORBIDDEN",
                 "message": error["message"],
                 "userMessage": "제안을 철회할 권한이 없습니다.",
-            }
+            },
         )
-    
+
     # 상태 확인
     if proposal.status != ProposalStatus.PENDING:
         from fastapi import HTTPException, status
+
         from app.utils.error_messages import get_error_message
+
         error = get_error_message("BAD_REQUEST")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -224,10 +223,9 @@ def withdraw_proposal(
                 "error": "BAD_REQUEST",
                 "message": error["message"],
                 "userMessage": "대기중인 제안만 철회할 수 있습니다.",
-            }
+            },
         )
-    
-    proposal.status = ProposalStatus.WITHDRAWN
-    
-    return proposal
 
+    proposal.status = ProposalStatus.WITHDRAWN
+
+    return proposal

@@ -1,14 +1,17 @@
 """
 채팅 서비스 로직
 """
+
+import uuid
 from datetime import datetime, timezone
 from typing import Optional
-import uuid
+
 from sqlalchemy.orm import Session
+
 from app.models.chat import (
-    ChatRoom,
     ChatParticipant,
     ChatParticipantRole,
+    ChatRoom,
     ChatRoomStatus,
 )
 
@@ -96,5 +99,3 @@ def _ensure_participant(
     )
     db.add(participant)
     return participant
-
-

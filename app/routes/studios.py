@@ -2,65 +2,21 @@
 Studio 라우트
 스튜디오 관리
 """
-from typing import Optional, List, Dict
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
+
 from app.core.database import get_db
-from app.models.studio import Studio
-from app.utils.response import success_response, fail_response
+from app.schemas.studios import StudioCreate, StudioUpdate
+from app.services.studio_service import create_studio, get_studio_by_id, update_studio
 from app.utils.common import model_to_dict
-from app.services.studio_service import (
-    get_studio_by_id,
-    create_studio,
-    update_studio
-)
-import uuid
+from app.utils.response import success_response
 
 router = APIRouter(prefix="/studios", tags=["studios"])
 
 
-class StudioCreate(BaseModel):
-    brand_name: Optional[str] = Field(None, alias="brandName")
-    one_line_intro: Optional[str] = Field(None, alias="oneLineIntro")
-    detailed_intro: Optional[str] = Field(None, alias="detailedIntro")
-    usage_info: Optional[str] = Field(None, alias="usageInfo")
-    price_info: Optional[str] = Field(None, alias="priceInfo")
-    main_thumbnail_url: Optional[str] = Field(None, alias="mainThumbnailUrl")
-    background_image_url: Optional[str] = Field(None, alias="backgroundImageUrl")
-    sub_thumbnail_urls: Optional[List[str]] = Field(None, alias="subThumbnailUrls")
-    gallery_urls: Optional[List[str]] = Field(None, alias="galleryUrls")
-    contact: Optional[Dict] = None
-    location: Optional[Dict] = None
-    weekly_schedule: Optional[Dict] = Field(None, alias="weeklySchedule")
-
-    class Config:
-        populate_by_name = True
-
-
-class StudioUpdate(BaseModel):
-    brand_name: Optional[str] = Field(None, alias="brandName")
-    one_line_intro: Optional[str] = Field(None, alias="oneLineIntro")
-    detailed_intro: Optional[str] = Field(None, alias="detailedIntro")
-    usage_info: Optional[str] = Field(None, alias="usageInfo")
-    price_info: Optional[str] = Field(None, alias="priceInfo")
-    main_thumbnail_url: Optional[str] = Field(None, alias="mainThumbnailUrl")
-    background_image_url: Optional[str] = Field(None, alias="backgroundImageUrl")
-    sub_thumbnail_urls: Optional[List[str]] = Field(None, alias="subThumbnailUrls")
-    gallery_urls: Optional[List[str]] = Field(None, alias="galleryUrls")
-    contact: Optional[Dict] = None
-    location: Optional[Dict] = None
-    weekly_schedule: Optional[Dict] = Field(None, alias="weeklySchedule")
-
-    class Config:
-        populate_by_name = True
-
-
 @router.post("", status_code=status.HTTP_201_CREATED)
-async def create_studio(
-    request: StudioCreate,
-    db: Session = Depends(get_db)
-):
+async def create_studio(request: StudioCreate, db: Session = Depends(get_db)):
     """
     새로운 스튜디오 정보 생성
     """
@@ -74,11 +30,7 @@ async def create_studio(
 
 
 @router.put("/{studio_id}")
-async def update_studio(
-    studio_id: str,
-    request: StudioUpdate,
-    db: Session = Depends(get_db)
-):
+async def update_studio(studio_id: str, request: StudioUpdate, db: Session = Depends(get_db)):
     """
     특정 ID를 가진 스튜디오 정보 수정
     """
@@ -92,10 +44,7 @@ async def update_studio(
 
 
 @router.get("/{studio_id}")
-async def get_studio(
-    studio_id: str,
-    db: Session = Depends(get_db)
-):
+async def get_studio(studio_id: str, db: Session = Depends(get_db)):
     """
     특정 ID를 가진 스튜디오 정보 조회
     """
@@ -103,4 +52,3 @@ async def get_studio(
 
     data = model_to_dict(studio)
     return success_response({"data": data})
-

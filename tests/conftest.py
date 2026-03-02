@@ -1,6 +1,7 @@
 """
 pytest 설정 및 공통 픽스처
 """
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -41,12 +42,13 @@ def client(db_session):
     """
     FastAPI 테스트 클라이언트 픽스처
     """
+
     def override_get_db():
         try:
             yield db_session
         finally:
             pass
-    
+
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
@@ -62,6 +64,5 @@ def test_user_data():
         "name": "Test User",
         "email": "test@example.com",
         "password": "testpassword123",
-        "role": "showhost"
+        "role": "showhost",
     }
-

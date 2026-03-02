@@ -34,4 +34,3 @@ services:
 networks:
   livbee-network:
     driver: bridge
-

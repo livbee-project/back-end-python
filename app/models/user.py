@@ -2,22 +2,28 @@
 User 모델
 사용자 정보 관리
 """
-from sqlalchemy import Column, String, Enum as SQLEnum, DateTime, Boolean
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from app.core.database import Base
+
 import enum
 import uuid
+
+from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+
+from app.core.database import Base
 
 
 class UserRole(str, enum.Enum):
     """사용자 역할"""
+
     BRAND = "brand"
     SHOWHOST = "showhost"
 
 
 class User(Base):
     """사용자 모델"""
+
     __tablename__ = "users"
 
     # 기본 필수 정보
@@ -49,17 +55,30 @@ class User(Base):
 
     # 타임스탬프
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # 관계
     portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
-    campaigns = relationship("Campaign", back_populates="created_by_user", foreign_keys="Campaign.created_by")
+    campaigns = relationship(
+        "Campaign", back_populates="created_by_user", foreign_keys="Campaign.created_by"
+    )
     applications = relationship("Application", back_populates="user", cascade="all, delete-orphan")
-    proposals_sent = relationship("Proposal", back_populates="proposer", foreign_keys="Proposal.proposer_id")
-    proposals_received = relationship("Proposal", back_populates="target_showhost", foreign_keys="Proposal.target_showhost_id")
+    proposals_sent = relationship(
+        "Proposal", back_populates="proposer", foreign_keys="Proposal.proposer_id"
+    )
+    proposals_received = relationship(
+        "Proposal", back_populates="target_showhost", foreign_keys="Proposal.target_showhost_id"
+    )
     news = relationship("News", back_populates="created_by_user", cascade="all, delete-orphan")
-    brand_chat_rooms = relationship("ChatRoom", back_populates="brand_user", foreign_keys="ChatRoom.brand_user_id")
-    showhost_chat_rooms = relationship("ChatRoom", back_populates="showhost_user", foreign_keys="ChatRoom.showhost_user_id")
-    chat_participations = relationship("ChatParticipant", back_populates="user", cascade="all, delete-orphan")
-
+    brand_chat_rooms = relationship(
+        "ChatRoom", back_populates="brand_user", foreign_keys="ChatRoom.brand_user_id"
+    )
+    showhost_chat_rooms = relationship(
+        "ChatRoom", back_populates="showhost_user", foreign_keys="ChatRoom.showhost_user_id"
+    )
+    chat_participations = relationship(
+        "ChatParticipant", back_populates="user", cascade="all, delete-orphan"
+    )

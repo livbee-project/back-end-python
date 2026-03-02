@@ -31,10 +31,10 @@ FastAPI 기반 백엔드 API 서버입니다.
 2. **가상환경 생성 및 활성화**
    ```bash
    python -m venv venv
-   
+
    # Windows
    .\venv\Scripts\activate
-   
+
    # Mac/Linux
    source venv/bin/activate
    ```
@@ -45,9 +45,9 @@ FastAPI 기반 백엔드 API 서버입니다.
    ```
 
 4. **환경변수 설정**
-   
+
    프로젝트 루트에 `.env` 파일을 생성하고 다음 환경변수를 설정하세요:
-   
+
    ```ini
    DB_HOST=your_database_host
    DB_PORT=5432
@@ -55,18 +55,18 @@ FastAPI 기반 백엔드 API 서버입니다.
    DB_USER=your_database_user
    DB_PASSWORD=your_database_password
    ```
-   
+
    **⚠️ 보안 주의:** `.env` 파일은 절대 Git에 커밋하지 마세요. `.gitignore`에 포함되어 있습니다.
 
 5. **데이터베이스 마이그레이션** (선택사항)
    ```bash
    # 초기 마이그레이션 생성 (첫 실행 시)
    alembic revision --autogenerate -m "Initial migration"
-   
+
    # 마이그레이션 적용
    alembic upgrade head
    ```
-   
+
    > **참고**: 로컬 개발 환경에서는 `init_db()` 함수가 자동으로 테이블을 생성하지만, 프로덕션 환경에서는 Alembic 마이그레이션을 사용하는 것을 권장합니다.
 
 6. **서버 실행**
@@ -78,13 +78,13 @@ FastAPI 기반 백엔드 API 서버입니다.
    ```bash
    # pre-commit 훅 설치
    pre-commit install
-   
+
    # 코드 포맷팅
    black app tests
-   
+
    # 타입 체크
    mypy app
-   
+
    # 린팅
    ruff check app tests
    ```
@@ -299,10 +299,12 @@ pre-commit run --all-files
 ```
 
 설치 후 커밋 시 자동으로 다음 검사가 수행됩니다:
-- 코드 포맷팅 (Black)
-- 린팅 (Ruff)
-- 타입 체크 (mypy)
-- 기타 파일 검증 (YAML, JSON, TOML 등)
+- 코드 포맷팅 (Black, app/tests)
+- 린팅 (Ruff, app/tests)
+- 타입 체크 (mypy, app만)
+- 기타 파일 검증 (trailing whitespace, end-of-file, YAML, JSON, TOML 등)
+
+설정 파일: `.pre-commit-config.yaml` (pyproject.toml의 [tool.black], [tool.ruff], [tool.mypy]와 연동)
 
 ### API 엔드포인트
 
@@ -439,7 +441,7 @@ pre-commit run --all-files
 | `GHCR_USERNAME` | (선택) GHCR 로그인용 GitHub 사용자명 (패키지가 Private일 때 필요) | Secrets |
 | `GHCR_TOKEN` | (선택) GHCR PAT (read/write:packages) | Secrets |
 
-> 📝 `GHCR_USERNAME`/`GHCR_TOKEN`을 설정하지 않으면 GitHub Actions는 `GITHUB_TOKEN`으로 push하고, 서버는 익명으로 pull을 시도합니다.  
+> 📝 `GHCR_USERNAME`/`GHCR_TOKEN`을 설정하지 않으면 GitHub Actions는 `GITHUB_TOKEN`으로 push하고, 서버는 익명으로 pull을 시도합니다.
 > 이 경우 GHCR 패키지를 Public로 공개해야 합니다.
 
 ### 유틸리티 모듈
@@ -448,7 +450,7 @@ pre-commit run --all-files
 - `app/utils/pagination.py`: `normalize_pagination`, `apply_pagination`, `build_paginated_payload`로 일관된 리스트 응답을 구성
 - `app/utils/response.py`: `success_response`, `fail_response`로 성공/실패 응답 포맷을 통일
 
-**보안 주의:** 
+**보안 주의:**
 - `.env` 파일은 절대 Git에 커밋하지 마세요
 - 모든 민감 정보는 GitHub Secrets로 관리됩니다
 - 프로덕션 환경은 수동 승인 단계가 포함되어 있습니다
@@ -484,7 +486,7 @@ pre-commit run --all-files
 1. **GitHub Secrets 설정**
    - 레포지토리 Settings → Secrets and variables → Actions
    - 서버 호스트, SSH 키, 데이터베이스 정보
-   - (선택) GHCR 패키지가 Private인 경우 `GHCR_USERNAME`, `GHCR_TOKEN` 추가  
+   - (선택) GHCR 패키지가 Private인 경우 `GHCR_USERNAME`, `GHCR_TOKEN` 추가
      👉 Secrets를 제공하지 않으면 워크플로우가 기본 `GITHUB_TOKEN`(단일 실행 동안만 유효)을 서버로 전달해 pull을 수행합니다.
 
 2. **서버 초기 설정**
@@ -534,10 +536,10 @@ pre-commit run --all-files
 
 ### 한글 깨짐 (커밋 메시지 / git log)
 
-**원인**  
+**원인**
 Windows에서 Git이 커밋 메시지나 로그 출력에 기본 인코딩(CP949 등)을 쓰거나, 셸이 UTF-8이 아니면 한글이 깨질 수 있습니다.
 
-**해결 및 사전 작업**  
+**해결 및 사전 작업**
 이 저장소에는 이미 아래 설정이 로컬(`.git/config`)에 적용되어 있습니다.
 
 - `i18n.commitEncoding=utf-8` — 커밋 메시지를 UTF-8로 해석

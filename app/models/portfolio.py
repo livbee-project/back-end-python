@@ -2,15 +2,19 @@
 Portfolio 모델
 쇼호스트 포트폴리오 정보
 """
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, ARRAY, JSON, DateTime
+
+import uuid
+
+from sqlalchemy import ARRAY, JSON, Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from app.core.database import Base
-import uuid
 
 
 class Portfolio(Base):
     """포트폴리오 모델"""
+
     __tablename__ = "portfolios"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -26,7 +30,9 @@ class Portfolio(Base):
     # 이미지 URL
     main_thumbnail_url = Column(String, nullable=True)
     background_image_url = Column(String, nullable=True)
-    sub_thumbnail_urls = Column(ARRAY(String), nullable=True)  # 최대 9개 (포트폴리오), 최대 5개 (모델)
+    sub_thumbnail_urls = Column(
+        ARRAY(String), nullable=True
+    )  # 최대 9개 (포트폴리오), 최대 5개 (모델)
 
     # 상태 및 공개 설정
     status = Column(String, default="published")  # enum: ["published"]
@@ -59,9 +65,10 @@ class Portfolio(Base):
 
     # 타임스탬프
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # 관계
     user = relationship("User", back_populates="portfolios")
     proposals = relationship("Proposal", back_populates="target_portfolio")
-

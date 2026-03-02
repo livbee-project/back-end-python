@@ -1,10 +1,10 @@
 """
 지원서 API 엔드포인트 통합 테스트
 """
-import pytest
+
 from datetime import date, timedelta
-from app.models.user import UserRole
-from app.models.application import ApplicationStatus
+
+import pytest
 
 
 @pytest.fixture
@@ -18,19 +18,15 @@ def brand_user_token(client):
             "email": "brand@example.com",
             "password": "password123",
             "role": "brand",
-            "brandName": "Test Brand"
-        }
+            "brandName": "Test Brand",
+        },
     )
-    
+
     # 로그인
     response = client.post(
-        "/api/v1/users/login",
-        json={
-            "email": "brand@example.com",
-            "password": "password123"
-        }
+        "/api/v1/users/login", json={"email": "brand@example.com", "password": "password123"}
     )
-    
+
     return response.json()["data"]["token"]
 
 
@@ -44,19 +40,15 @@ def showhost_user_token(client):
             "name": "Showhost User",
             "email": "showhost@example.com",
             "password": "password123",
-            "role": "showhost"
-        }
+            "role": "showhost",
+        },
     )
-    
+
     # 로그인
     response = client.post(
-        "/api/v1/users/login",
-        json={
-            "email": "showhost@example.com",
-            "password": "password123"
-        }
+        "/api/v1/users/login", json={"email": "showhost@example.com", "password": "password123"}
     )
-    
+
     return response.json()["data"]["token"]
 
 
@@ -71,10 +63,10 @@ def test_campaign(client, brand_user_token):
             "content": "Test content",
             "brandName": "Test Brand",
             "closeAt": (date.today() + timedelta(days=7)).isoformat(),
-            "isPublic": True
-        }
+            "isPublic": True,
+        },
     )
-    
+
     return response.json()["data"]
 
 
@@ -83,12 +75,9 @@ def test_create_application_success(client, showhost_user_token, test_campaign):
     response = client.post(
         "/api/v1/applications",
         headers={"Authorization": f"Bearer {showhost_user_token}"},
-        json={
-            "campaignId": test_campaign["id"],
-            "message": "Test application"
-        }
+        json={"campaignId": test_campaign["id"], "message": "Test application"},
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["ok"] == True
@@ -102,20 +91,16 @@ def test_get_my_application(client, showhost_user_token, test_campaign):
     create_response = client.post(
         "/api/v1/applications",
         headers={"Authorization": f"Bearer {showhost_user_token}"},
-        json={
-            "campaignId": test_campaign["id"],
-            "message": "Test application"
-        }
+        json={"campaignId": test_campaign["id"], "message": "Test application"},
     )
-    
+
     # 조회
     response = client.get(
         f"/api/v1/applications/mine?campaignId={test_campaign['id']}",
-        headers={"Authorization": f"Bearer {showhost_user_token}"}
+        headers={"Authorization": f"Bearer {showhost_user_token}"},
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["ok"] == True
     assert data["data"]["data"] is not None
-

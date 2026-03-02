@@ -1,8 +1,8 @@
 """
 뉴스 API 엔드포인트 통합 테스트
 """
+
 import pytest
-from app.models.user import UserRole
 
 
 @pytest.fixture
@@ -16,25 +16,21 @@ def admin_user_token(client):
             "email": "admin@example.com",
             "password": "password123",
             "role": "brand",
-            "brandName": "Admin Brand"
-        }
+            "brandName": "Admin Brand",
+        },
     )
-    
+
     response = client.post(
-        "/api/v1/users/login",
-        json={
-            "email": "admin@example.com",
-            "password": "password123"
-        }
+        "/api/v1/users/login", json={"email": "admin@example.com", "password": "password123"}
     )
-    
+
     return response.json()["data"]["token"]
 
 
 def test_get_news_list(client):
     """뉴스 목록 조회 테스트"""
     response = client.get("/api/v1/news")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["ok"] == True
@@ -47,20 +43,16 @@ def test_get_news_by_id(client, admin_user_token):
     create_response = client.post(
         "/api/v1/news",
         headers={"Authorization": f"Bearer {admin_user_token}"},
-        json={
-            "title": "Test News",
-            "content": "Test content"
-        }
+        json={"title": "Test News", "content": "Test content"},
     )
-    
+
     if create_response.status_code == 201:
         news_id = create_response.json()["data"]["data"]["id"]
-        
+
         # 조회
         response = client.get(f"/api/v1/news/{news_id}")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["ok"] == True
         assert data["data"]["data"]["id"] == news_id
-

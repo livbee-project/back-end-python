@@ -1,12 +1,15 @@
 """
 공통 유틸리티 함수
 """
+
 import re
 import unicodedata
-from typing import List, Optional, Dict, Any, Union
-from datetime import datetime, date
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional, Union
+
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import DeclarativeBase
+
 from app.core.config import settings
 
 
@@ -14,8 +17,8 @@ def snake_to_camel(snake_str: str) -> str:
     """
     snake_case를 camelCase로 변환
     """
-    components = snake_str.split('_')
-    return components[0] + ''.join(x.capitalize() for x in components[1:])
+    components = snake_str.split("_")
+    return components[0] + "".join(x.capitalize() for x in components[1:])
 
 
 def to_thumb(url: Optional[str] = "") -> str:
@@ -45,9 +48,31 @@ def sanitize_html(html_content: Optional[str]) -> str:
     soup = BeautifulSoup(html_content, "html.parser")
 
     allowed_tags = [
-        "p", "br", "strong", "em", "u", "b", "i", "a", "ul", "ol", "li",
-        "img", "h1", "h2", "h3", "h4", "h5", "h6", "span", "div",
-        "figure", "figcaption", "blockquote", "pre", "code"
+        "p",
+        "br",
+        "strong",
+        "em",
+        "u",
+        "b",
+        "i",
+        "a",
+        "ul",
+        "ol",
+        "li",
+        "img",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "span",
+        "div",
+        "figure",
+        "figcaption",
+        "blockquote",
+        "pre",
+        "code",
     ]
 
     allowed_attrs = {
@@ -217,11 +242,11 @@ def prefix_to_korean(prefix: Optional[str]) -> Optional[str]:
     """
     if not prefix:
         return None
-    
+
     # 이미 한글 값인 경우 그대로 반환
     if prefix in PREFIX_MAP.values():
         return prefix
-    
+
     # 영문 코드인 경우 한글로 변환
     return PREFIX_MAP.get(prefix, prefix)
 
@@ -231,21 +256,21 @@ def model_to_dict(
     exclude: Optional[List[str]] = None,
     include: Optional[List[str]] = None,
     exclude_private: bool = True,
-    to_camel_case: bool = False
+    to_camel_case: bool = False,
 ) -> Dict[str, Any]:
     """
     SQLAlchemy 모델을 딕셔너리로 변환
-    
+
     Args:
         model: SQLAlchemy 모델 인스턴스
         exclude: 제외할 필드 목록
         include: 포함할 필드 목록 (지정 시 include만 포함)
         exclude_private: True인 경우 '_'로 시작하는 필드 제외
         to_camel_case: True인 경우 필드명을 camelCase로 변환
-    
+
     Returns:
         딕셔너리 형태의 모델 데이터
-    
+
     Example:
         data = model_to_dict(user)
         data = model_to_dict(user, exclude=['password'])
@@ -254,37 +279,37 @@ def model_to_dict(
     """
     if model is None:
         return {}
-    
+
     exclude = exclude or []
     result = {}
-    
+
     # 모델의 모든 속성 순회
     for key, value in model.__dict__.items():
         # private 필드 제외
-        if exclude_private and key.startswith('_'):
+        if exclude_private and key.startswith("_"):
             continue
-        
+
         # exclude 목록에 있으면 제외
         if key in exclude:
             continue
-        
+
         # include가 지정된 경우 include에 있는 것만 포함
         if include and key not in include:
             continue
-        
+
         # 출력 키 결정 (camelCase 변환 여부)
         output_key = snake_to_camel(key) if to_camel_case else key
-        
+
         # datetime, date 객체를 ISO 형식 문자열로 변환
         if isinstance(value, (datetime, date)):
             result[output_key] = value.isoformat() if value else None
         # Enum 객체를 값으로 변환
-        elif hasattr(value, 'value'):
+        elif hasattr(value, "value"):
             result[output_key] = value.value
         # 일반 값은 그대로
         else:
             result[output_key] = value
-    
+
     return result
 
 
@@ -292,20 +317,20 @@ def models_to_list(
     models: List[Union[DeclarativeBase, Any]],
     exclude: Optional[List[str]] = None,
     include: Optional[List[str]] = None,
-    exclude_private: bool = True
+    exclude_private: bool = True,
 ) -> List[Dict[str, Any]]:
     """
     SQLAlchemy 모델 리스트를 딕셔너리 리스트로 변환
-    
+
     Args:
         models: SQLAlchemy 모델 인스턴스 리스트
         exclude: 제외할 필드 목록
         include: 포함할 필드 목록
         exclude_private: True인 경우 '_'로 시작하는 필드 제외
-    
+
     Returns:
         딕셔너리 리스트
-    
+
     Example:
         items = models_to_list(users)
         items = models_to_list(applications, exclude=['message'])
@@ -319,32 +344,32 @@ def models_to_list(
 def validate_url(url: Optional[str]) -> bool:
     """
     URL 형식 검증
-    
+
     Args:
         url: 검증할 URL 문자열
-    
+
     Returns:
         유효한 URL이면 True, 아니면 False
     """
     if not url:
         return True  # None이나 빈 문자열은 허용 (선택 필드)
-    
+
     try:
         url_str = str(url).strip()
         if not url_str:
             return True
-        
+
         # 기본적인 URL 형식 검증 (더 관대한 패턴)
         # http:// 또는 https://로 시작하는지 확인
-        if not url_str.startswith(('http://', 'https://')):
+        if not url_str.startswith(("http://", "https://")):
             return False
-        
+
         # 최소한의 도메인 형식 확인
         # http:// 또는 https:// 제거 후 남은 부분 확인
-        url_without_scheme = url_str.split('://', 1)[1] if '://' in url_str else ''
-        if not url_without_scheme or len(url_without_scheme.split('/')[0].split('.')) < 1:
+        url_without_scheme = url_str.split("://", 1)[1] if "://" in url_str else ""
+        if not url_without_scheme or len(url_without_scheme.split("/")[0].split(".")) < 1:
             return False
-        
+
         return True
     except Exception:
         # 예외 발생 시 False 반환 (안전하게 처리)
@@ -354,33 +379,50 @@ def validate_url(url: Optional[str]) -> bool:
 def validate_phone_number(phone: Optional[str]) -> bool:
     """
     전화번호 형식 검증 (한국 전화번호)
-    
+
     Args:
         phone: 검증할 전화번호 문자열
-    
+
     Returns:
         유효한 전화번호이면 True, 아니면 False
     """
     if not phone:
         return True  # None이나 빈 문자열은 허용 (선택 필드)
-    
+
     # 숫자만 추출
-    digits = re.sub(r'\D', '', phone)
-    
+    digits = re.sub(r"\D", "", phone)
+
     # 한국 전화번호: 10자리 또는 11자리 (휴대폰: 11자리, 일반전화: 10자리)
     if len(digits) < 10 or len(digits) > 11:
         return False
-    
+
     # 휴대폰 번호: 010으로 시작하는 11자리
-    if len(digits) == 11 and digits.startswith('010'):
+    if len(digits) == 11 and digits.startswith("010"):
         return True
-    
+
     # 일반 전화번호: 지역번호로 시작하는 10자리
     if len(digits) == 10:
         # 지역번호 체크 (02, 031, 032, 033, 041, 042, 043, 044, 051, 052, 053, 054, 055, 061, 062, 063, 064)
-        area_codes = ['02', '031', '032', '033', '041', '042', '043', '044', 
-                     '051', '052', '053', '054', '055', '061', '062', '063', '064']
+        area_codes = [
+            "02",
+            "031",
+            "032",
+            "033",
+            "041",
+            "042",
+            "043",
+            "044",
+            "051",
+            "052",
+            "053",
+            "054",
+            "055",
+            "061",
+            "062",
+            "063",
+            "064",
+        ]
         if any(digits.startswith(code) for code in area_codes):
             return True
-    
+
     return False

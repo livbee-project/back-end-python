@@ -144,4 +144,3 @@ def downgrade() -> None:
     postgresql.ENUM(name="chatmessagestatus").drop(op.get_bind(), checkfirst=True)
     postgresql.ENUM(name="chatmessagetype").drop(op.get_bind(), checkfirst=True)
     postgresql.ENUM(name="chatroomstatus").drop(op.get_bind(), checkfirst=True)
-

@@ -2,58 +2,34 @@
 News 라우트
 뉴스/공지사항 관리
 """
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from pydantic import BaseModel, HttpUrl, Field
+
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+
 from app.core.database import get_db
-from app.middleware.auth import get_current_user
 from app.middleware.role import require_role
-from app.models.news import News
-from app.models.user import User, UserRole
-from app.utils.response import success_response, fail_response
-from app.utils.common import strip_tags, truncate_text, model_to_dict
+from app.models.user import UserRole
+from app.schemas.news import NewsCreate, NewsUpdate
 from app.services.news_service import (
-    get_news_list,
-    get_news_by_id,
     create_news,
+    delete_news,
+    get_news_by_id,
+    get_news_list,
     update_news,
-    delete_news
 )
+from app.utils.common import model_to_dict, strip_tags, truncate_text
 from app.utils.pagination import (
-    normalize_pagination,
-    apply_pagination,
     build_paginated_payload,
+    normalize_pagination,
 )
-import uuid
+from app.utils.response import success_response
 
 router = APIRouter(prefix="/news", tags=["news"])
 
 
-class NewsCreate(BaseModel):
-    title: str
-    content: str
-    image_url: Optional[HttpUrl] = Field(None, alias="imageUrl")
-
-    class Config:
-        populate_by_name = True
-
-
-class NewsUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
-    image_url: Optional[HttpUrl] = Field(None, alias="imageUrl")
-
-    class Config:
-        populate_by_name = True
-
-
 @router.get("")
 async def get_news_list(
-    page: int = Query(1, ge=1),
-    limit: int = Query(10, ge=1),
-    db: Session = Depends(get_db)
+    page: int = Query(1, ge=1), limit: int = Query(10, ge=1), db: Session = Depends(get_db)
 ):
     """
     전체 뉴스 목록을 페이지네이션으로 조회
@@ -73,10 +49,7 @@ async def get_news_list(
 
 
 @router.get("/{news_id}")
-async def get_news(
-    news_id: str,
-    db: Session = Depends(get_db)
-):
+async def get_news(news_id: str, db: Session = Depends(get_db)):
     """
     특정 ID의 뉴스 상세 정보 조회
     """
@@ -90,7 +63,7 @@ async def get_news(
 async def create_news(
     request: NewsCreate,
     current_user: dict = Depends(require_role(UserRole.SHOWHOST.value)),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     새로운 뉴스 생성
@@ -103,7 +76,7 @@ async def create_news(
         title=request.title,
         content=request.content,
         created_by=user_id,
-        image_url=str(request.image_url) if request.image_url else None
+        image_url=str(request.image_url) if request.image_url else None,
     )
 
     data = model_to_dict(news_item)
@@ -115,7 +88,7 @@ async def update_news(
     news_id: str,
     request: NewsUpdate,
     current_user: dict = Depends(require_role(UserRole.SHOWHOST.value)),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     특정 ID의 뉴스 수정
@@ -129,7 +102,7 @@ async def update_news(
         news_id=news_id,
         title=update_data.get("title"),
         content=update_data.get("content"),
-        image_url=image_url
+        image_url=image_url,
     )
 
     data = model_to_dict(news_item)
@@ -140,7 +113,7 @@ async def update_news(
 async def delete_news(
     news_id: str,
     current_user: dict = Depends(require_role(UserRole.SHOWHOST.value)),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     특정 ID의 뉴스 삭제
@@ -149,4 +122,3 @@ async def delete_news(
     delete_news(db, news_id)
 
     return success_response({"message": "뉴스가 성공적으로 삭제되었습니다."})
-

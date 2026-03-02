@@ -1,4 +1,4 @@
-name: Deploy to Dev Environment
+﻿name: Deploy to Dev Environment
 
 on:
   push:
@@ -7,8 +7,33 @@ on:
   workflow_dispatch:  # 수동 실행 가능
 
 jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run ruff check
+        run: ruff check app tests
+
+      - name: Run black check
+        run: black --check app tests
+
+      - name: Run pytest
+        run: pytest tests
+
   deploy:
     name: Deploy to Dev Server
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -234,4 +259,3 @@ jobs:
             echo "❌ 헬스체크 실패"
             docker logs livbee-backend-dev --tail 50
             exit 1
-

@@ -2,37 +2,42 @@
 Upload 라우트
 파일 업로드 관련 API (Cloudinary 서명 생성)
 """
-import time
+
 import hashlib
+import time
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
 from app.core.config import settings
-from app.middleware.auth import get_current_user
-from app.utils.response import success_response, fail_response
 from app.core.logging_config import get_logger
+from app.middleware.auth import get_current_user
+from app.utils.response import success_response
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
 
-def get_upload_folder_path(category: Optional[str] = None, resource_id: Optional[str] = None) -> Optional[str]:
+def get_upload_folder_path(
+    category: Optional[str] = None, resource_id: Optional[str] = None
+) -> Optional[str]:
     """
     업로드 파일의 폴더 경로 생성
-    
+
     Args:
         category: 파일 카테고리 (campaign, portfolio, news, user 등)
         resource_id: 리소스 ID (campaign_id, portfolio_id 등)
-    
+
     Returns:
         폴더 경로 문자열 또는 None
     """
     # 기본 폴더가 설정되어 있으면 기본 경로 사용
     base_folder = settings.CLOUDINARY_FOLDER or "livbee"
-    
+
     if not category:
         return base_folder
-    
+
     # 카테고리별 폴더 구조
     category_folders = {
         "campaign": "campaigns",
@@ -41,29 +46,29 @@ def get_upload_folder_path(category: Optional[str] = None, resource_id: Optional
         "user": "users",
         "studio": "studios",
     }
-    
+
     folder_name = category_folders.get(category.lower())
     if not folder_name:
         return base_folder
-    
+
     # 리소스 ID가 있으면 하위 폴더로 구성
     if resource_id:
         return f"{base_folder}/{folder_name}/{resource_id}"
-    
+
     return f"{base_folder}/{folder_name}"
 
 
 def generate_cloudinary_signature(params: dict, api_secret: str) -> str:
     """
     Cloudinary 업로드 서명 생성
-    
+
     Args:
         params: 업로드 파라미터 딕셔너리 (모든 값은 문자열로 변환되어야 함)
         api_secret: Cloudinary API Secret
-    
+
     Returns:
         서명 문자열 (hexdigest)
-    
+
     참고:
         Cloudinary는 HMAC-SHA1이 아닌 SHA-1 해시 방식을 사용합니다.
         서명 생성 방식: SHA1(param_string + api_secret)
@@ -75,60 +80,70 @@ def generate_cloudinary_signature(params: dict, api_secret: str) -> str:
         if value is not None and str(value).strip():
             # None이 아니고 빈 문자열이 아닌 모든 값을 문자열로 변환
             string_params[key] = str(value).strip()
-    
+
     # 파라미터를 키 기준으로 알파벳 순서로 정렬
     sorted_params = sorted(string_params.items())
-    
+
     # 파라미터 문자열 생성 (key=value&key=value 형식)
     param_string = "&".join([f"{k}={v}" for k, v in sorted_params])
-    
+
     # 디버깅: 서명 생성 시 사용한 파라미터 로깅 (INFO 레벨로 변경하여 배포 환경에서도 확인 가능)
     logger.info(f"Cloudinary 서명 생성 - 파라미터 문자열: {param_string}")
-    
+
     # Cloudinary 서명 생성 방식: SHA-1 해시 (HMAC이 아님)
     # 서명 생성: SHA1(param_string + api_secret)
     signature_string = f"{param_string}{api_secret}"
-    signature = hashlib.sha1(signature_string.encode('utf-8')).hexdigest()
-    
+    signature = hashlib.sha1(signature_string.encode("utf-8")).hexdigest()
+
     logger.info(f"Cloudinary 서명 생성 - 서명: {signature}")
-    
+
     return signature
 
 
 @router.get("/signature")
 async def get_upload_signature(
     type: str = Query(..., description="업로드 타입: image 또는 raw"),
-    category: Optional[str] = Query(None, description="파일 카테고리: campaign, portfolio, news, user, studio"),
-    resource_id: Optional[str] = Query(None, description="리소스 ID (campaign_id, portfolio_id 등)"),
-    public_id: Optional[str] = Query(None, description="파일명 (public_id, Cloudinary 업로드 시 사용)"),
-    current_user: dict = Depends(get_current_user)
+    category: Optional[str] = Query(
+        None, description="파일 카테고리: campaign, portfolio, news, user, studio"
+    ),
+    resource_id: Optional[str] = Query(
+        None, description="리소스 ID (campaign_id, portfolio_id 등)"
+    ),
+    public_id: Optional[str] = Query(
+        None, description="파일명 (public_id, Cloudinary 업로드 시 사용)"
+    ),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Cloudinary 업로드 서명 생성 API
-    
+
     프론트엔드에서 Cloudinary에 직접 파일을 업로드하기 위한 서명을 생성합니다.
-    
+
     Args:
         type: 업로드 타입 (image 또는 raw)
         category: 파일 카테고리 (campaign, portfolio, news, user, studio)
         resource_id: 리소스 ID (campaign_id, portfolio_id 등, 선택사항)
         public_id: 파일명 (public_id, 선택사항, 서명 생성에 포함)
         current_user: 현재 인증된 사용자 정보
-    
+
     Returns:
         Cloudinary 업로드에 필요한 서명 정보
-    
+
     폴더 구조:
     - 기본: livbee/ (또는 CLOUDINARY_FOLDER 환경변수 값)
     - category만 제공: livbee/{category}/ (예: livbee/campaigns/)
     - category + resource_id 제공: livbee/{category}/{resource_id}/ (예: livbee/campaigns/{campaign_id}/)
-    
+
     예시:
     - category=campaign, resource_id 없음: livbee/campaigns/ (모집공고 등록 전 임시 업로드)
     - category=campaign, resource_id={campaign_id}: livbee/campaigns/{campaign_id}/ (캠페인 생성 후)
     """
     # Cloudinary 설정 확인
-    if not settings.CLOUDINARY_API_KEY or not settings.CLOUDINARY_API_SECRET or not settings.CLOUDINARY_CLOUD_NAME:
+    if (
+        not settings.CLOUDINARY_API_KEY
+        or not settings.CLOUDINARY_API_SECRET
+        or not settings.CLOUDINARY_CLOUD_NAME
+    ):
         missing_settings = []
         if not settings.CLOUDINARY_API_KEY:
             missing_settings.append("CLOUDINARY_API_KEY")
@@ -136,59 +151,58 @@ async def get_upload_signature(
             missing_settings.append("CLOUDINARY_API_SECRET")
         if not settings.CLOUDINARY_CLOUD_NAME:
             missing_settings.append("CLOUDINARY_CLOUD_NAME")
-        
+
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Cloudinary 설정이 완료되지 않았습니다. 누락된 설정: {', '.join(missing_settings)}"
+            detail=f"Cloudinary 설정이 완료되지 않았습니다. 누락된 설정: {', '.join(missing_settings)}",
         )
-    
+
     # 타입 검증
     if type not in ["image", "raw"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="type 파라미터는 'image' 또는 'raw'여야 합니다."
+            detail="type 파라미터는 'image' 또는 'raw'여야 합니다.",
         )
-    
+
     # 카테고리 검증
     valid_categories = ["campaign", "portfolio", "news", "user", "studio"]
     if category and category.lower() not in valid_categories:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"category 파라미터는 다음 중 하나여야 합니다: {', '.join(valid_categories)}"
+            detail=f"category 파라미터는 다음 중 하나여야 합니다: {', '.join(valid_categories)}",
         )
-    
+
     # 타임스탬프 생성 (현재 시간, 문자열로 변환)
     timestamp = int(time.time())
-    
+
     # 폴더 경로 생성
     folder_path = get_upload_folder_path(category, resource_id)
-    
+
     # 업로드 파라미터 구성 (서명 생성에 포함될 파라미터들)
     # Cloudinary는 모든 파라미터를 문자열로 처리하므로 문자열로 변환
     # 참고: resource_type은 URL 경로에 포함되므로 서명에 포함하지 않음
     upload_params = {
         "timestamp": str(timestamp),
     }
-    
+
     # 폴더 경로 추가
     if folder_path:
         upload_params["folder"] = folder_path
-    
+
     # public_id 추가 (서명 생성에 포함)
     if public_id:
         upload_params["public_id"] = public_id
-    
+
     # 디버깅: 서명 생성 전 파라미터 로깅 (INFO 레벨로 변경하여 배포 환경에서도 확인 가능)
-    logger.info(f"Cloudinary 서명 생성 요청 - type={type}, category={category}, resource_id={resource_id}, public_id={public_id}")
+    logger.info(
+        f"Cloudinary 서명 생성 요청 - type={type}, category={category}, resource_id={resource_id}, public_id={public_id}"
+    )
     logger.info(f"서명 생성 전 upload_params: {upload_params}")
     logger.info(f"폴더 경로: {folder_path}")
-    
+
     # Cloudinary 서명 생성
-    signature = generate_cloudinary_signature(
-        upload_params,
-        settings.CLOUDINARY_API_SECRET
-    )
-    
+    signature = generate_cloudinary_signature(upload_params, settings.CLOUDINARY_API_SECRET)
+
     # 응답 데이터 구성
     response_data = {
         "apiKey": settings.CLOUDINARY_API_KEY,
@@ -196,13 +210,12 @@ async def get_upload_signature(
         "timestamp": str(timestamp),
         "cloudName": settings.CLOUDINARY_CLOUD_NAME,
     }
-    
+
     # 폴더 경로 추가
     if folder_path:
         response_data["folder"] = folder_path
-    
+
     # 디버깅: 응답 데이터 로깅 (INFO 레벨로 변경하여 배포 환경에서도 확인 가능)
     logger.info(f"서명 생성 완료 - 응답 데이터: {response_data}")
-    
-    return success_response({"data": response_data})
 
+    return success_response({"data": response_data})
