@@ -5,11 +5,12 @@ Model 모델
 
 import uuid
 
-from sqlalchemy import ARRAY, Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.core.db_types import StringArray
 
 
 class Model(Base):
@@ -30,7 +31,7 @@ class Model(Base):
     # 이미지 URL
     main_thumbnail_url = Column(String, nullable=True)
     background_image_url = Column(String, nullable=True)
-    sub_thumbnail_urls = Column(ARRAY(String), nullable=True)  # 최대 5개 (모델)
+    sub_thumbnail_urls = Column(StringArray, nullable=True)  # 최대 5개 (모델)
 
     # 상태 및 공개 설정
     status = Column(String, default="published")  # enum: ["published"]

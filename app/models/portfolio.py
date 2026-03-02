@@ -5,11 +5,12 @@ Portfolio 모델
 
 import uuid
 
-from sqlalchemy import ARRAY, JSON, Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.core.db_types import StringArray
 
 
 class Portfolio(Base):
@@ -31,7 +32,7 @@ class Portfolio(Base):
     main_thumbnail_url = Column(String, nullable=True)
     background_image_url = Column(String, nullable=True)
     sub_thumbnail_urls = Column(
-        ARRAY(String), nullable=True
+        StringArray, nullable=True
     )  # 최대 9개 (포트폴리오), 최대 5개 (모델)
 
     # 상태 및 공개 설정

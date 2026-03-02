@@ -5,10 +5,11 @@ Studio 모델
 
 import uuid
 
-from sqlalchemy import ARRAY, JSON, Column, DateTime, String
+from sqlalchemy import JSON, Column, DateTime, String
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.core.db_types import StringArray
 
 
 class Studio(Base):
@@ -28,8 +29,8 @@ class Studio(Base):
     # 이미지 URL
     main_thumbnail_url = Column(String, nullable=True)
     background_image_url = Column(String, nullable=True)
-    sub_thumbnail_urls = Column(ARRAY(String), nullable=True)  # 최대 5개
-    gallery_urls = Column(ARRAY(String), nullable=True)  # 최대 9개
+    sub_thumbnail_urls = Column(StringArray, nullable=True)  # 최대 5개
+    gallery_urls = Column(StringArray, nullable=True)  # 최대 9개
 
     # 연락처 및 위치
     contact = Column(JSON, nullable=True)  # {phone, email, kakao}

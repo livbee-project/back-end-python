@@ -6,7 +6,6 @@ Campaign 모델
 import uuid
 
 from sqlalchemy import (
-    ARRAY,
     JSON,
     Boolean,
     Column,
@@ -21,6 +20,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.core.db_types import StringArray
 
 
 class ProductItem(Base):
@@ -66,7 +66,7 @@ class Question(Base):
         String, default="short"
     )  # enum: ["short", "long", "select", "file", "url", "number"]
     required = Column(Boolean, default=False)
-    options = Column(ARRAY(String), nullable=True)
+    options = Column(StringArray, nullable=True)
 
     # 관계
     campaign = relationship("Campaign", back_populates="questions")
