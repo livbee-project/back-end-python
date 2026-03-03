@@ -3,10 +3,11 @@ SMS 발송 유틸 (Solapi 연동)
 인증번호 등 SMS 메시지 발송
 """
 
+from solapi import SolapiMessageService
+from solapi.model import RequestMessage
+
 from app.core.config import settings
 from app.core.logging_config import get_logger
-from solapi.model import RequestMessage
-from solapi import SolapiMessageService
 
 logger = get_logger(__name__)
 
