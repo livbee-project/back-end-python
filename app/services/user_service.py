@@ -50,6 +50,7 @@ def create_user(
     password: str,
     role: UserRole,
     phone: Optional[str] = None,
+    kakao_id: Optional[str] = None,
     brand_name: Optional[str] = None,
     company_name: Optional[str] = None,
     business_number: Optional[str] = None,
@@ -67,6 +68,7 @@ def create_user(
         password: 비밀번호 (평문)
         role: 역할
         phone: 전화번호
+        kakao_id: 카카오 계정 ID (선택, 카카오 연동 가입 시)
         brand_name: 브랜드명 (brand 역할일 때)
         company_name: 회사명 (brand 역할일 때)
         business_number: 사업자번호 (brand 역할일 때)
@@ -112,6 +114,10 @@ def create_user(
         if requested_is_showhost:
             existing_user.is_showhost = True
 
+        # 기존 유저에 kakao_id가 없을 때만 설정 (선택적)
+        if kakao_id and kakao_id.strip() and getattr(existing_user, "kakao_id", None) is None:
+            existing_user.kakao_id = kakao_id.strip()
+
         # 기존 role 필드는 그대로 두되, 필요 시 이후 단계에서 정리
         db.flush()
         db.refresh(existing_user)
@@ -132,6 +138,7 @@ def create_user(
         "password": hashed_password,
         "role": role.value,
         "phone": phone.strip() if phone and phone.strip() else None,
+        "kakao_id": kakao_id.strip() if kakao_id and kakao_id.strip() else None,
         "is_brand": is_brand,
         "is_showhost": is_showhost,
     }

@@ -3,6 +3,9 @@ from app.routes import (
     applications as applications,
 )
 from app.routes import (
+    auth as auth,
+)
+from app.routes import (
     campaigns as campaigns,
 )
 from app.routes import (

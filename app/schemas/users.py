@@ -16,6 +16,7 @@ class SignupRequest(BaseModel):
     password: str = Field(..., min_length=1)
     role: UserRole
     phone: Optional[str] = None
+    kakao_id: Optional[str] = Field(None, alias="kakaoId")
     # brand용
     brand_name: Optional[str] = Field(None, alias="brandName")
     company_name: Optional[str] = Field(None, alias="companyName")

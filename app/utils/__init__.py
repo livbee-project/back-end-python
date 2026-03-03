@@ -1,4 +1,5 @@
 # Utils module
+from .sms import send_sms_verification  # noqa: F401
 from .common import (  # noqa: F401
     category_to_code,
     code_to_category,
@@ -21,6 +22,7 @@ from .pagination import (  # noqa: F401
 )
 
 __all__ = [
+    "send_sms_verification",
     "to_thumb",
     "sanitize_html",
     "strip_tags",

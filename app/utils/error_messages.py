@@ -150,6 +150,19 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Chat room not found",
         "userMessage": "채팅방을 찾을 수 없습니다.",
     },
+    # --- SMS 인증 (Auth) ---
+    "SMS_SEND_FAILED": {
+        "message": "SMS send failed",
+        "userMessage": "인증번호를 발송하지 못했습니다.",
+    },
+    "SMS_VERIFY_FAILED": {
+        "message": "SMS verification failed",
+        "userMessage": "인증번호가 일치하지 않거나 만료되었습니다.",
+    },
+    "REDIS_UNAVAILABLE": {
+        "message": "Redis unavailable",
+        "userMessage": "일시적으로 인증 서비스를 사용할 수 없습니다.",
+    },
 }
 
 

@@ -35,6 +35,7 @@ class User(Base):
 
     # 공통 선택 정보
     phone = Column(String, nullable=True)
+    kakao_id = Column(String, nullable=True, index=True)
 
     # 역할 플래그 (다중 역할 지원용)
     # - is_brand: 브랜드 기능 사용 가능 여부

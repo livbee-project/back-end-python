@@ -53,6 +53,7 @@ async def signup(request: Request, signup_request: SignupRequest, db: Session = 
             password=password,
             role=role,
             phone=signup_request.phone,
+            kakao_id=signup_request.kakao_id,
             brand_name=signup_request.brand_name,
             company_name=signup_request.company_name,
             business_number=signup_request.business_number,

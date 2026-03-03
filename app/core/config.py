@@ -35,6 +35,20 @@ class Settings(BaseSettings):
         None  # cloudinary://API_KEY:API_SECRET 형식 (선택적, 자동 파싱용)
     )
 
+    # Redis (SMS 인증 등) — REDIS_URL 우선, 없으면 REDIS_HOST/PORT/DB 조합
+    REDIS_URL: Optional[str] = None
+    REDIS_HOST: Optional[str] = None
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+
+    # Solapi (SMS 발송) — 로컬/테스트 시 미설정 가능
+    SOLAPI_API_KEY: Optional[str] = None
+    SOLAPI_API_SECRET: Optional[str] = None
+    SOLAPI_SENDER_NUMBER: Optional[str] = None  # 발신번호
+
+    # SMS 실제 발송 스킵 (로컬/테스트용, env "true"/"false" 문자열 지원)
+    SMS_SKIP_SEND: bool = False
+
     # API 설정
     API_BASE_PATH: str = "/api/v1"
     JSON_LIMIT: str = "1mb"

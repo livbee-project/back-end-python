@@ -195,6 +195,11 @@ jobs:
             CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
             CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
             CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+            REDIS_URL=${{ secrets.DEV_REDIS_URL }}
+            SOLAPI_API_KEY=${{ secrets.DEV_SOLAPI_API_KEY }}
+            SOLAPI_API_SECRET=${{ secrets.DEV_SOLAPI_API_SECRET }}
+            SOLAPI_SENDER_NUMBER=${{ secrets.DEV_SOLAPI_SENDER_NUMBER }}
+            SMS_SKIP_SEND=${{ secrets.DEV_SMS_SKIP_SEND }}
             EOF
 
             docker stop livbee-backend-dev 2>/dev/null || true
