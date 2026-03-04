@@ -27,6 +27,7 @@ class SignupRequest(BaseModel):
         if not has_kakao and not has_password:
             raise ValueError("비밀번호는 필수 입력 항목입니다.")
         return self
+
     # brand용
     brand_name: Optional[str] = Field(None, alias="brandName")
     company_name: Optional[str] = Field(None, alias="companyName")

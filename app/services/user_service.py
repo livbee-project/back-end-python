@@ -137,7 +137,11 @@ def create_user(
             error = get_error_message("VALIDATION_FAILED")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"error": "VALIDATION_FAILED", "message": error.get("message"), "userMessage": "비밀번호는 필수 입력 항목입니다."},
+                detail={
+                    "error": "VALIDATION_FAILED",
+                    "message": error.get("message"),
+                    "userMessage": "비밀번호는 필수 입력 항목입니다.",
+                },
             )
         hashed_password = get_password_hash(password)
 

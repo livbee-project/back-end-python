@@ -93,11 +93,7 @@ async def kakao_login(
         return fail_response("VALIDATION_MISSING_FIELDS", status.HTTP_400_BAD_REQUEST)
 
     # 1) kakao_id 기준으로 우선 조회
-    user = (
-        db.query(User)
-        .filter(User.kakao_id == kakao_id)
-        .first()
-    )
+    user = db.query(User).filter(User.kakao_id == kakao_id).first()
 
     # 2) kakao_id로 못 찾으면 email 기준으로 조회 (기존 이메일 가입 계정과 연결)
     if not user:
