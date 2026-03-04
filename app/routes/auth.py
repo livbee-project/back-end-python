@@ -6,12 +6,11 @@ SMS 인증 전용 (인증번호 발송·검증)
 import random
 
 from fastapi import APIRouter, Depends, Request, status
-
-from app.core.logging_config import get_logger
-from app.core.rate_limit import limiter
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.logging_config import get_logger
+from app.core.rate_limit import limiter
 from app.core.redis import delete_sms_code, get_redis, get_sms_code, set_sms_code
 from app.core.security import create_access_token
 from app.models.user import User, UserRole

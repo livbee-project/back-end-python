@@ -131,7 +131,9 @@ def create_user(
     else:
         if not has_password:
             from fastapi import HTTPException, status
+
             from app.utils.error_messages import get_error_message
+
             error = get_error_message("VALIDATION_FAILED")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
