@@ -47,7 +47,7 @@ def create_user(
     db: Session,
     name: str,
     email: str,
-    password: str,
+    password: Optional[str],
     role: UserRole,
     phone: Optional[str] = None,
     kakao_id: Optional[str] = None,
@@ -123,8 +123,21 @@ def create_user(
         db.refresh(existing_user)
         return existing_user
 
-    # 비밀번호 해시
-    hashed_password = get_password_hash(password)
+    # 카카오 가입 시 비밀번호 생략 가능; 그 외에는 필수(스키마에서 검증)
+    has_kakao = kakao_id and kakao_id.strip()
+    has_password = bool(password and (password.strip() if isinstance(password, str) else ""))
+    if has_kakao and not has_password:
+        hashed_password = None
+    else:
+        if not has_password:
+            from fastapi import HTTPException, status
+            from app.utils.error_messages import get_error_message
+            error = get_error_message("VALIDATION_FAILED")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"error": "VALIDATION_FAILED", "message": error.get("message"), "userMessage": "비밀번호는 필수 입력 항목입니다."},
+            )
+        hashed_password = get_password_hash(password)
 
     # 역할 플래그 계산
     is_brand = role == UserRole.BRAND

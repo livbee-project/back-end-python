@@ -30,7 +30,7 @@ class User(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False, index=True)
-    password = Column(String, nullable=False)  # 해시된 비밀번호
+    password = Column(String, nullable=True)  # 해시된 비밀번호 (카카오 전용 가입 시 None)
     role = Column(SQLEnum(UserRole), nullable=False)
 
     # 공통 선택 정보

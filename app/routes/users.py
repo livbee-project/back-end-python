@@ -27,13 +27,13 @@ async def signup(request: Request, signup_request: SignupRequest, db: Session = 
     회원가입
     역할('brand', 'showhost')에 따라 다른 정보를 받아 사용자를 생성
     """
-    # 입력값 검증
+    # 입력값 검증 (비밀번호는 카카오 가입 시 선택 → 스키마 validator에서 검증)
     name = signup_request.name.strip()
     email = signup_request.email.lower().strip()
     password = signup_request.password
     role = signup_request.role
 
-    if not name or not email or not password or not role:
+    if not name or not email or not role:
         return fail_response("VALIDATION_MISSING_FIELDS", status.HTTP_400_BAD_REQUEST)
 
     # 'brand' 역할의 경우, 'brandName' 필드가 필수

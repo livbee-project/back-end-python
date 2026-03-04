@@ -34,6 +34,10 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Invalid credentials",
         "userMessage": "이메일 또는 비밀번호가 잘못되었습니다.",
     },
+    "USER_NOT_FOUND": {
+        "message": "User not found",
+        "userMessage": "카카오 계정으로 가입된 유저가 없습니다.",
+    },
     "ROLE_MISMATCH": {
         "message": "Role does not match",
         "userMessage": "선택하신 역할과 계정 정보가 일치하지 않습니다.",

@@ -5,7 +5,7 @@ User 도메인 스키마
 
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from app.models.user import UserRole
 
@@ -13,10 +13,20 @@ from app.models.user import UserRole
 class SignupRequest(BaseModel):
     name: str = Field(..., min_length=1)
     email: EmailStr
-    password: str = Field(..., min_length=1)
+    password: Optional[str] = Field(None)
     role: UserRole
     phone: Optional[str] = None
     kakao_id: Optional[str] = Field(None, alias="kakaoId")
+
+    @model_validator(mode="after")
+    def password_required_unless_kakao(self):
+        """카카오 가입(kakaoId 있음)이 아니면 비밀번호 필수."""
+        has_kakao = self.kakao_id and self.kakao_id.strip()
+        pwd = self.password
+        has_password = pwd is not None and (pwd if isinstance(pwd, str) else "").strip()
+        if not has_kakao and not has_password:
+            raise ValueError("비밀번호는 필수 입력 항목입니다.")
+        return self
     # brand용
     brand_name: Optional[str] = Field(None, alias="brandName")
     company_name: Optional[str] = Field(None, alias="companyName")
