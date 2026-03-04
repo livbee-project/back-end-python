@@ -4,7 +4,7 @@ JWT 토큰 생성/검증, 비밀번호 해싱
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -20,14 +20,14 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     if not plain_password or not hashed_password:
         return False
     try:
-        return pwd_context.verify(plain_password, hashed_password)
+        return cast(bool, pwd_context.verify(plain_password, hashed_password))
     except Exception:
         return False
 
 
 def get_password_hash(password: str) -> str:
     """비밀번호 해싱"""
-    return pwd_context.hash(password)
+    return cast(str, pwd_context.hash(password))
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -61,7 +61,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
 
     try:
         encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
-        return encoded_jwt
+        return cast(str, encoded_jwt)
     except Exception as e:
         raise ValueError(f"Failed to encode JWT token: {str(e)}") from e
 
@@ -78,6 +78,6 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
     """
     try:
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-        return payload
+        return cast(Dict[str, Any], payload)
     except JWTError:
         return None

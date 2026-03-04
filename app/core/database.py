@@ -4,7 +4,7 @@ SQLAlchemy를 사용한 연결 풀 관리
 """
 
 from contextlib import contextmanager
-from typing import Generator
+from typing import Any, Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
@@ -36,7 +36,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base 클래스 (모델 상속용)
-Base = declarative_base()
+Base: Any = declarative_base()
 
 
 def get_db() -> Generator[Session, None, None]:

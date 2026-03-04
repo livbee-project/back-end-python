@@ -167,6 +167,10 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Redis unavailable",
         "userMessage": "일시적으로 인증 서비스를 사용할 수 없습니다.",
     },
+    "BUSINESS_VERIFY_FAILED": {
+        "message": "Business verification failed",
+        "userMessage": "사업자 등록정보를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.",
+    },
 }
 
 

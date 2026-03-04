@@ -14,7 +14,16 @@ from app.core.rate_limit import limiter
 from app.core.redis import delete_sms_code, get_redis, get_sms_code, set_sms_code
 from app.core.security import create_access_token
 from app.models.user import User, UserRole
-from app.schemas.auth import KakaoLoginRequest, SendSmsRequest, VerifySmsRequest
+from app.schemas.auth import (
+    BusinessVerificationRequest,
+    KakaoLoginRequest,
+    SendSmsRequest,
+    VerifySmsRequest,
+)
+from app.services.business_verification_service import (
+    BusinessVerificationError,
+    verify_business,
+)
 from app.services.user_service import get_user_by_email
 from app.utils.common import normalize_phone_number
 from app.utils.response import fail_response, success_response
@@ -148,4 +157,42 @@ async def kakao_login(
                 "isShowhost": has_showhost,
             },
         }
+    )
+
+
+@router.post("/verify-business")
+@limiter.limit("5/minute")
+async def verify_business_status(request: Request, body: BusinessVerificationRequest):
+    """
+    국세청 사업자등록정보 상태조회 기반 진위확인.
+
+    - 입력: 사업자등록번호(필수), 개업일자/대표자명(선택, 현재는 보관만)
+    - 처리: 공공데이터포털 국세청 상태조회 API(status)를 호출해 계속사업자 여부 확인
+    - 출력: ok=true/false + valid 플래그 및 상태/과세유형 요약 정보
+    """
+    # 사업자번호는 숫자만 남기고 정규화
+    normalized_bno = "".join(ch for ch in body.business_number if ch.isdigit())
+    if len(normalized_bno) != 10:
+        return fail_response("VALIDATION_FAILED", status.HTTP_400_BAD_REQUEST)
+
+    try:
+        result = verify_business(
+            business_number=normalized_bno,
+            opening_date=body.opening_date,
+            representative_name=body.representative_name,
+        )
+    except BusinessVerificationError as exc:
+        logger.warning("verify-business failed: %s", exc)
+        return fail_response("BUSINESS_VERIFY_FAILED", status.HTTP_502_BAD_GATEWAY)
+
+    return success_response(
+        {
+            "valid": result.valid,
+            "businessNumber": result.business_number,
+            "status": result.status,
+            "statusCode": result.status_code,
+            "taxType": result.tax_type,
+            "taxTypeCode": result.tax_type_code,
+        },
+        message="사업자 등록정보를 확인했습니다.",
     )

@@ -5,7 +5,7 @@
 import re
 import unicodedata
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, cast
 
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import DeclarativeBase
@@ -98,7 +98,8 @@ def strip_tags(html_content: Optional[str]) -> str:
     if not html_content:
         return ""
     soup = BeautifulSoup(html_content, "html.parser")
-    return soup.get_text(" ", strip=True)
+    # BeautifulSoup.get_text는 타입 힌트가 Any이므로, 실제 반환값인 문자열로 캐스팅한다.
+    return cast(str, soup.get_text(" ", strip=True))
 
 
 def truncate_text(text: Optional[str], limit: int = 140, suffix: str = "…") -> str:
@@ -182,7 +183,7 @@ def extract_hashtags(text: Optional[str]) -> List[str]:
     return sorted({tag.lower() for tag in tags})
 
 
-def format_date(date_obj: Any) -> str:
+def format_date(date_obj: object) -> str:
     """
     날짜를 'YYYY. MM. DD' 형식으로 변환
     """
@@ -193,7 +194,8 @@ def format_date(date_obj: Any) -> str:
         if isinstance(date_obj, datetime):
             return date_obj.strftime("%Y. %m. %d")
         if hasattr(date_obj, "strftime"):
-            return date_obj.strftime("%Y. %m. %d")
+            # mypy가 date_obj 타입을 추론하지 못하므로 결과를 문자열로 캐스팅
+            return cast(str, date_obj.strftime("%Y. %m. %d"))  # type: ignore[call-arg]
         return str(date_obj)
     except Exception:
         return ""

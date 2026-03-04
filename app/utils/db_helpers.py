@@ -2,7 +2,7 @@
 데이터베이스 조회 및 권한 확인 헬퍼 함수
 """
 
-from typing import Any, Callable, Optional, Type, TypeVar
+from typing import Any, Callable, Optional, Type, TypeVar, cast
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -37,9 +37,9 @@ def get_or_404(
     """
     query = db.query(model)
     query = filter_condition(query)
-    instance = query.first()
+    instance = cast(Optional[T], query.first())
 
-    if not instance:
+    if instance is None:
         error = get_error_message(error_key)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

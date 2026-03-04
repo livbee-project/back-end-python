@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     # SMS 실제 발송 스킵 (로컬/테스트용, env "true"/"false" 문자열 지원)
     SMS_SKIP_SEND: bool = False
 
+    # 국세청 사업자등록정보 진위확인/상태조회 API (공공데이터포털)
+    NTS_BUSINESS_API_BASE_URL: Optional[str] = None
+    NTS_BUSINESS_API_KEY: Optional[str] = None
+    NTS_BUSINESS_API_TIMEOUT_SECONDS: int = 5
+
     # API 설정
     API_BASE_PATH: str = "/api/v1"
     JSON_LIMIT: str = "1mb"
@@ -77,7 +82,8 @@ def get_settings() -> Settings:
     """Settings 인스턴스 가져오기 (CLOUDINARY_URL 자동 파싱)"""
     global _settings_instance
     if _settings_instance is None:
-        _settings_instance = Settings()
+        # BaseSettings는 환경변수에서 값을 로드하므로, mypy의 인자 부족 경고는 무시한다.
+        _settings_instance = Settings()  # type: ignore[call-arg]
 
         # CLOUDINARY_URL이 있으면 자동으로 파싱
         if _settings_instance.CLOUDINARY_URL and not _settings_instance.CLOUDINARY_API_KEY:

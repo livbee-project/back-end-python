@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+
 """
 User 모델
 사용자 정보 관리

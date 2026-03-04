@@ -3,7 +3,7 @@
 일관된 API 응답 형식 제공
 """
 
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import status
 from fastapi.encoders import jsonable_encoder
@@ -26,7 +26,7 @@ def success_response(
     Returns:
         JSONResponse
     """
-    response_data = {"ok": True}
+    response_data: Dict[str, Any] = {"ok": True}
 
     if data is not None:
         response_data["data"] = data
