@@ -179,6 +179,8 @@ jobs:
             SOLAPI_API_SECRET=${{ secrets.PROD_SOLAPI_API_SECRET }}
             SOLAPI_SENDER_NUMBER=${{ secrets.PROD_SOLAPI_SENDER_NUMBER }}
             SMS_SKIP_SEND=${{ secrets.PROD_SMS_SKIP_SEND }}
+            NTS_BUSINESS_API_BASE_URL=${{ secrets.PROD_NTS_BUSINESS_API_BASE_URL }}
+            NTS_BUSINESS_API_KEY=${{ secrets.PROD_NTS_BUSINESS_API_KEY }}
             EOF
 
             docker stop livbee-backend-prod 2>/dev/null || true
