@@ -33,6 +33,7 @@ from app.utils.common import model_to_dict, strip_tags, truncate_text
 from app.utils.pagination import build_paginated_payload, normalize_pagination
 from app.utils.response import success_response
 
+# prefix="/community/posts": REST 리소스가 "게시글(posts)"이고, 상위 네임스페이스 "community"로 구분. (다른 라우터는 단일 경로 ex. /users, /news)
 router = APIRouter(prefix="/community/posts", tags=["community"])
 
 

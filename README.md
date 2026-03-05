@@ -152,6 +152,8 @@ back-end-python/
 └── README.md               # 프로젝트 문서
 ```
 
+> **문서 폴더:** `docs/` 는 `.gitignore`에 포함되어 Git에 커밋되지 않습니다. 개인 작업 가이드·참고용으로만 사용하는 것이 프로젝트 정책입니다. 팀 공용 문서는 README 또는 별도 공유 채널을 이용하세요.
+
 ### 아키텍처 개요
 
 이 프로젝트는 **서비스 레이어 아키텍처**를 따릅니다:
@@ -427,22 +429,49 @@ pre-commit run --all-files
 - `PUT /api/v1/studios/{studio_id}`: 스튜디오 정보 수정
 - `GET /api/v1/studios/{studio_id}`: 특정 스튜디오 정보 조회
 
+#### 인증 (`/api/v1/auth`)
+
+- `POST /api/v1/auth/send-sms`: SMS 인증번호 발송
+- `POST /api/v1/auth/verify-sms`: SMS 인증번호 검증
+- `POST /api/v1/auth/kakao/login`: 카카오 로그인 (토큰 발급)
+- `POST /api/v1/auth/verify-business`: 사업자등록정보 진위확인 (국세청 API)
+
+#### 커뮤니티 (`/api/v1/community/posts`)
+
+- `GET /api/v1/community/posts`: 게시글 목록 조회 (페이지네이션, 정렬, 카테고리/검색)
+- `GET /api/v1/community/posts/{post_id}`: 게시글 상세 조회
+- `POST /api/v1/community/posts`: 게시글 작성 (인증 필요)
+- `PUT /api/v1/community/posts/{post_id}`: 게시글 수정 (인증 필요)
+- `DELETE /api/v1/community/posts/{post_id}`: 게시글 삭제 (인증 필요)
+- `GET /api/v1/community/posts/{post_id}/comments`: 댓글 목록
+- `POST /api/v1/community/posts/{post_id}/comments`: 댓글 작성 (인증 필요)
+- `PUT /api/v1/community/posts/comments/{comment_id}`: 댓글 수정 (인증 필요)
+- `DELETE /api/v1/community/posts/comments/{comment_id}`: 댓글 삭제 (인증 필요)
+- `POST /api/v1/community/posts/{post_id}/like`: 좋아요 추가 (인증 필요)
+- `DELETE /api/v1/community/posts/{post_id}/like`: 좋아요 취소 (인증 필요)
+
+#### 업로드 (`/api/v1/uploads`)
+
+- `GET /api/v1/uploads/signature`: Cloudinary 업로드용 서명 생성 (인증 필요, 쿼리: category, resource_id 등)
+
 ### 환경변수
 
-필요한 환경변수:
+**필수 (앱 기동):** `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`
 
-| 변수명 | 설명 | 기본값 |
-|--------|------|--------|
-| `DB_HOST` | 데이터베이스 호스트 주소 | - |
-| `DB_PORT` | 데이터베이스 포트 | `5432` |
-| `DB_NAME` | 데이터베이스 이름 | - |
-| `DB_USER` | 데이터베이스 사용자명 | - |
-| `DB_PASSWORD` | 데이터베이스 비밀번호 | - |
-| `GHCR_USERNAME` | (선택) GHCR 로그인용 GitHub 사용자명 (패키지가 Private일 때 필요) | Secrets |
-| `GHCR_TOKEN` | (선택) GHCR PAT (read/write:packages) | Secrets |
+**선택:** Cloudinary, Redis, Solapi(SMS), 국세청 사업자 API, CORS 등 — 전체 목록과 설명은 **루트의 `.env.example`** 을 참고하세요. 로컬에서는 `.env.example`을 복사해 `.env`로 저장한 뒤 값을 채워 사용하면 됩니다.
+
+**배포용 (GitHub Secrets):** Dev/Prod 각각 DB, JWT, Cloudinary, Redis, Solapi, NTS 등. 워크플로우에서 서버의 `.env`를 동적 생성할 때 사용합니다. GHCR 패키지가 Private이면 `GHCR_USERNAME`, `GHCR_TOKEN`도 Secrets에 추가하세요.
 
 > 📝 `GHCR_USERNAME`/`GHCR_TOKEN`을 설정하지 않으면 GitHub Actions는 `GITHUB_TOKEN`으로 push하고, 서버는 익명으로 pull을 시도합니다.
 > 이 경우 GHCR 패키지를 Public로 공개해야 합니다.
+
+#### 환경변수 동기화 체크리스트 (신규 변수 추가 시)
+
+새 환경변수를 `app/core/config.py`에 추가했을 때 **반드시** 아래 3곳을 함께 갱신하세요. (누락 시 배포 시점에 시크릿이 컨테이너로 전달되지 않을 수 있음.)
+
+- [ ] **`.env.example`** — 키 이름과 한 줄 설명 추가
+- [ ] **`.github/workflows/deploy-dev.yml`** — `cat > .env <<EOF` 블록에 해당 키(Dev Secrets 참조) 추가
+- [ ] **`.github/workflows/deploy-prod.yml`** — `cat > .env <<EOF` 블록에 해당 키(Prod Secrets 참조) 추가
 
 ### 유틸리티 모듈
 
@@ -533,6 +562,10 @@ pre-commit run --all-files
 - **배포 실패**: GitHub Actions 로그 확인
 - **502 에러**: Docker 컨테이너 및 Nginx 상태 확인
 - **DB 연결 실패**: 환경변수 및 방화벽 설정 확인
+
+### 배포 실패 시 DB 연결 (no pg_hba.conf)
+
+에러 메시지에 `no pg_hba.conf entry`가 보이면, **DB 서버(PostgreSQL)가 배포 서버(Dev/Prod) IP에서의 접속을 허용하지 않는** 상태입니다. DB 서버의 `pg_hba.conf`에 해당 환경(Dev 또는 Prod) 서버 IP에 대한 `host ... md5`(또는 `scram-sha-256`) 항목을 추가한 뒤 PostgreSQL을 재로드하세요. 방화벽에서 DB 포트(5432)가 배포 서버 → DB 서버 방향으로 열려 있는지도 확인하세요.
 
 ### 한글 깨짐 (커밋 메시지 / git log)
 

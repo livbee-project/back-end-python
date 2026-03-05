@@ -23,6 +23,8 @@ build/
 htmlcov/
 .coverage
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # 마이그레이션 (선택)
 # alembic/versions/
