@@ -94,6 +94,12 @@ async def get_community_posts(
             )
             # 작성자 및 상태
             payload["authorId"] = post.created_by
+            if post.created_by_user:
+                payload["authorName"] = post.created_by_user.name
+                payload["authorRole"] = post.created_by_user.role
+            else:
+                payload["authorName"] = None
+                payload["authorRole"] = None
             payload["isLiked"] = post.id in liked_post_ids if current_user_id else False
             payload["isOwner"] = current_user_id == post.created_by if current_user_id else False
             items.append(payload)
@@ -120,6 +126,12 @@ async def get_community_post(
         to_camel_case=True,
     )
     data["authorId"] = post.created_by
+    if post.created_by_user:
+        data["authorName"] = post.created_by_user.name
+        data["authorRole"] = post.created_by_user.role
+    else:
+        data["authorName"] = None
+        data["authorRole"] = None
     data["isOwner"] = current_user_id == post.created_by if current_user_id else False
 
     if current_user_id:
@@ -165,7 +177,13 @@ async def create_community_post(
         exclude=["created_by_user", "comments", "likes"],
         to_camel_case=True,
     )
-    data["authorId"] = user_id
+    data["authorId"] = post.created_by
+    if post.created_by_user:
+        data["authorName"] = post.created_by_user.name
+        data["authorRole"] = post.created_by_user.role
+    else:
+        data["authorName"] = None
+        data["authorRole"] = None
     data["isOwner"] = True
     data["isLiked"] = False
 
@@ -205,6 +223,12 @@ async def update_community_post(
         to_camel_case=True,
     )
     data["authorId"] = post.created_by
+    if post.created_by_user:
+        data["authorName"] = post.created_by_user.name
+        data["authorRole"] = post.created_by_user.role
+    else:
+        data["authorName"] = None
+        data["authorRole"] = None
     data["isOwner"] = True
 
     return success_response({"data": data})
@@ -243,10 +267,8 @@ async def get_community_comments(
     """
     comments = get_comments_for_post(db, post_id)
 
-    # 트리 구조 구성 (parent_id 기준)
-    comment_map = {}
-    roots = []
-
+    # 1-depth 대댓글 구조는 유지하되, 1차 스펙에서는 parentId와 상관없이 평면 리스트로 제공
+    items = []
     for comment in comments:
         payload = model_to_dict(
             comment,
@@ -256,18 +278,15 @@ async def get_community_comments(
         payload["parentId"] = comment.parent_id
         payload["postId"] = comment.post_id
         payload["authorId"] = comment.created_by
-        payload["replies"] = []
-        comment_map[comment.id] = payload
-
-    for comment in comments:
-        if comment.parent_id:
-            parent = comment_map.get(comment.parent_id)
-            if parent is not None:
-                parent["replies"].append(comment_map[comment.id])
+        if comment.created_by_user:
+            payload["authorName"] = comment.created_by_user.name
+            payload["authorRole"] = comment.created_by_user.role
         else:
-            roots.append(comment_map[comment.id])
+            payload["authorName"] = None
+            payload["authorRole"] = None
+        items.append(payload)
 
-    return success_response({"items": roots})
+    return success_response({"items": items})
 
 
 @router.post("/{post_id}/comments", status_code=status.HTTP_201_CREATED)
@@ -298,6 +317,12 @@ async def create_community_comment(
     data["parentId"] = comment.parent_id
     data["postId"] = comment.post_id
     data["authorId"] = comment.created_by
+    if comment.created_by_user:
+        data["authorName"] = comment.created_by_user.name
+        data["authorRole"] = comment.created_by_user.role
+    else:
+        data["authorName"] = None
+        data["authorRole"] = None
 
     return success_response({"data": data}, status_code=status.HTTP_201_CREATED)
 
@@ -331,6 +356,12 @@ async def update_community_comment(
     data["parentId"] = comment.parent_id
     data["postId"] = comment.post_id
     data["authorId"] = comment.created_by
+    if comment.created_by_user:
+        data["authorName"] = comment.created_by_user.name
+        data["authorRole"] = comment.created_by_user.role
+    else:
+        data["authorName"] = None
+        data["authorRole"] = None
 
     return success_response({"data": data})
 
