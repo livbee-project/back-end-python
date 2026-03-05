@@ -23,6 +23,7 @@ from app.routes import (
     auth,
     campaigns,
     chat,
+    community,
     models,
     news,
     portfolios,
@@ -267,6 +268,7 @@ app.include_router(news.router, prefix=settings.API_BASE_PATH)
 app.include_router(studios.router, prefix=settings.API_BASE_PATH)
 app.include_router(chat.router, prefix=settings.API_BASE_PATH)
 app.include_router(uploads.router, prefix=settings.API_BASE_PATH)
+app.include_router(community.router, prefix=settings.API_BASE_PATH)
 
 
 # 기본 라우트

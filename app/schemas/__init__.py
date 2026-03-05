@@ -11,6 +11,12 @@ from app.schemas.chat import (
     ChatRoomCreateRequest,
 )
 from app.schemas.common import PaginationMeta
+from app.schemas.community import (
+    CommunityCommentCreate,
+    CommunityCommentUpdate,
+    CommunityPostCreate,
+    CommunityPostUpdate,
+)
 from app.schemas.models import ModelCreate, ModelUpdate
 from app.schemas.news import NewsCreate, NewsUpdate
 from app.schemas.portfolios import PortfolioCreate, PortfolioUpdate
@@ -39,4 +45,8 @@ __all__ = [
     "ChatMessageCreateRequest",
     "ChatReadRequest",
     "PaginationMeta",
+    "CommunityPostCreate",
+    "CommunityPostUpdate",
+    "CommunityCommentCreate",
+    "CommunityCommentUpdate",
 ]

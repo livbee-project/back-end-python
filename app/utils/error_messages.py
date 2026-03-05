@@ -158,6 +158,31 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "Chat room not found",
         "userMessage": "채팅방을 찾을 수 없습니다.",
     },
+    # --- 커뮤니티 (Community) ---
+    "COMMUNITY_POST_NOT_FOUND": {
+        "message": "Community post not found",
+        "userMessage": "해당 커뮤니티 게시글을 찾을 수 없습니다.",
+    },
+    "COMMUNITY_COMMENT_NOT_FOUND": {
+        "message": "Community comment not found",
+        "userMessage": "해당 댓글을 찾을 수 없습니다.",
+    },
+    "COMMUNITY_FORBIDDEN_EDIT": {
+        "message": "Forbidden to modify community resource",
+        "userMessage": "해당 커뮤니티 게시글/댓글을 수정하거나 삭제할 권한이 없습니다.",
+    },
+    "COMMUNITY_ALREADY_LIKED": {
+        "message": "Community post already liked",
+        "userMessage": "이미 좋아요를 누른 게시글입니다.",
+    },
+    "COMMUNITY_NOT_LIKED": {
+        "message": "Community post is not liked",
+        "userMessage": "아직 좋아요를 누르지 않은 게시글입니다.",
+    },
+    "COMMUNITY_INVALID_COMMENT_DEPTH": {
+        "message": "Invalid comment depth",
+        "userMessage": "대댓글의 대댓글은 지원하지 않습니다.",
+    },
     # --- SMS 인증 (Auth) ---
     "SMS_SEND_FAILED": {
         "message": "SMS send failed",

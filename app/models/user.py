@@ -91,3 +91,12 @@ class User(Base):
     chat_participations = relationship(
         "ChatParticipant", back_populates="user", cascade="all, delete-orphan"
     )
+    community_posts = relationship(
+        "CommunityPost", back_populates="created_by_user", cascade="all, delete-orphan"
+    )
+    community_comments = relationship(
+        "CommunityComment", back_populates="created_by_user", cascade="all, delete-orphan"
+    )
+    community_post_likes = relationship(
+        "CommunityPostLike", back_populates="user", cascade="all, delete-orphan"
+    )

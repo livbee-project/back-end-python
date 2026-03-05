@@ -10,6 +10,7 @@ from app.models.chat import (
     ChatRoom,
     ChatRoomStatus,
 )
+from app.models.community import CommunityComment, CommunityPost, CommunityPostLike
 from app.models.model import Model
 from app.models.news import News
 from app.models.portfolio import Portfolio
@@ -35,4 +36,7 @@ __all__ = [
     "ChatMessageStatus",
     "ChatMessageType",
     "ChatParticipantRole",
+    "CommunityPost",
+    "CommunityComment",
+    "CommunityPostLike",
 ]
