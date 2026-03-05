@@ -22,7 +22,7 @@ from app.services.campaign_service import (
     check_campaign_ownership,
     get_campaign_by_id,
     get_campaigns_with_applied_status,
-    get_user_campaigns,
+    get_user_campaigns_paginated,
 )
 from app.services.campaign_service import (
     create_campaign as create_campaign_service,
@@ -30,12 +30,7 @@ from app.services.campaign_service import (
 from app.services.campaign_service import (
     update_campaign as update_campaign_service,
 )
-from app.utils.common import (
-    model_to_dict,
-    models_to_list,
-    strip_tags,
-    truncate_text,
-)
+from app.utils.common import model_to_dict, strip_tags, truncate_text
 from app.utils.pagination import (
     build_paginated_payload,
     normalize_pagination,
@@ -139,17 +134,54 @@ async def get_campaigns(
 
 @router.get("/mine")
 async def get_my_campaigns(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=50),
+    search: Optional[str] = None,
+    sort: Optional[str] = Query(None, pattern="^(deadline|latest)$"),
     current_user: dict = Depends(require_role(UserRole.BRAND.value, "admin")),
     db: Session = Depends(get_db),
 ):
     """
-    현재 로그인된 사용자가 생성한 모든 공고 목록 조회
+    현재 로그인된 사용자가 생성한 공고 목록 조회 (마이페이지용)
     """
-    user_id = current_user.get("sub")
-    campaigns = get_user_campaigns(db, user_id)
+    page, limit = normalize_pagination(page, limit, max_limit=50)
 
-    items = models_to_list(campaigns)
-    return success_response({"items": items})
+    user_id = current_user.get("sub")
+    campaigns, total_items = get_user_campaigns_paginated(
+        db,
+        user_id=user_id,
+        page=page,
+        limit=limit,
+        search=search,
+        sort=sort,
+    )
+
+    items = []
+    for campaign in campaigns:
+        # 목록 조회 시 불필요한 필드 제외 (응답 크기 최적화)
+        item = model_to_dict(campaign, exclude=["brand_introduction", "detailed_content"])
+        # product_thumbnail_url 필드 명시적으로 포함 (프론트엔드 요청)
+        if hasattr(campaign, "product_thumbnail_url"):
+            item["product_thumbnail_url"] = campaign.product_thumbnail_url
+        # 브랜드 마이페이지에서는 광고 캠페인 플래그는 항상 False
+        item["isAd"] = False
+        # 브랜드 소유 캠페인 목록이므로 지원 여부는 항상 False로 고정
+        item["isApplied"] = False
+        # summary 생성 로직 재사용
+        try:
+            content_for_summary = (
+                campaign.detailed_content if campaign.detailed_content else campaign.content
+            )
+            if content_for_summary and isinstance(content_for_summary, str):
+                item["summary"] = truncate_text(strip_tags(content_for_summary), limit=220)
+            else:
+                item["summary"] = ""
+        except Exception:
+            # summary 생성 실패 시 빈 문자열로 처리
+            item["summary"] = ""
+        items.append(item)
+
+    return success_response(build_paginated_payload(items, total_items, page, limit))
 
 
 @router.get("/{campaign_id}")

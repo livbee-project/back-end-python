@@ -307,6 +307,55 @@ def get_user_campaigns(db: Session, user_id: str) -> list[Campaign]:
     )
 
 
+def get_user_campaigns_paginated(
+    db: Session,
+    user_id: str,
+    page: int = 1,
+    limit: int = 10,
+    search: Optional[str] = None,
+    sort: Optional[str] = None,
+) -> tuple[list[Campaign], int]:
+    """
+    사용자가 생성한 캠페인 목록 조회 (페이지네이션/검색/정렬 포함)
+
+    Args:
+        db: 데이터베이스 세션
+        user_id: 사용자 ID
+        page: 페이지 번호
+        limit: 페이지당 항목 수
+        search: 검색어
+        sort: 정렬 방식 ("deadline" | "latest")
+
+    Returns:
+        (캠페인 리스트, 전체 개수) 튜플
+    """
+    skip = (page - 1) * limit
+
+    query = db.query(Campaign).filter(Campaign.created_by == user_id)
+
+    # 검색 조건
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                Campaign.title.ilike(search_term),
+                Campaign.content.ilike(search_term),
+                Campaign.brand_name.ilike(search_term),
+            )
+        )
+
+    # 정렬
+    if sort == "deadline":
+        query = query.order_by(Campaign.close_at.asc())
+    else:
+        query = query.order_by(desc(Campaign.created_at))
+
+    total_items = query.count()
+    campaigns = query.offset(skip).limit(limit).all()
+
+    return campaigns, total_items
+
+
 def check_campaign_ownership(
     db: Session, campaign_id: str, user_id: str, user_role: Optional[str] = None
 ) -> Campaign:
