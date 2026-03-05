@@ -38,6 +38,10 @@ ERROR_MESSAGES: Dict[str, ErrorDefinition] = {
         "message": "User not found",
         "userMessage": "카카오 계정으로 가입된 유저가 없습니다.",
     },
+    "USER_NOT_FOUND_FOR_ROLE": {
+        "message": "User not found for requested role",
+        "userMessage": "해당 역할로는 가입된 계정이 없습니다.",
+    },
     "ROLE_MISMATCH": {
         "message": "Role does not match",
         "userMessage": "선택하신 역할과 계정 정보가 일치하지 않습니다.",

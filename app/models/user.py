@@ -8,7 +8,7 @@ User 모델
 import enum
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy import Boolean, Column, DateTime, String, UniqueConstraint
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -27,11 +27,17 @@ class User(Base):
     """사용자 모델"""
 
     __tablename__ = "users"
+    __table_args__ = (
+        # 이메일은 역할(role)별로는 유니크하게 관리
+        UniqueConstraint("email", "role", name="uq_users_email_role"),
+        # 카카오 ID도 역할별로 유니크하게 관리 (NULL 허용)
+        UniqueConstraint("kakao_id", "role", name="uq_users_kakao_id_role"),
+    )
 
     # 기본 필수 정보
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False, index=True)
+    email = Column(String, nullable=False, index=True)
     password = Column(String, nullable=True)  # 해시된 비밀번호 (카카오 전용 가입 시 None)
     role = Column(SQLEnum(UserRole), nullable=False)
 

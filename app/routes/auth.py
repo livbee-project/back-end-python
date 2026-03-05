@@ -123,10 +123,19 @@ async def kakao_login(
     has_brand = bool(getattr(user, "is_brand", False))
     has_showhost = bool(getattr(user, "is_showhost", False))
 
+    # 요청한 역할로는 아직 가입되지 않은 경우: USER_NOT_FOUND_FOR_ROLE (404)
     if requested_role_value == UserRole.BRAND.value and not has_brand:
-        return fail_response("ROLE_MISMATCH", status.HTTP_403_FORBIDDEN)
+        return fail_response(
+            "USER_NOT_FOUND_FOR_ROLE",
+            status.HTTP_404_NOT_FOUND,
+            {"code": "USER_NOT_FOUND_FOR_ROLE"},
+        )
     if requested_role_value == UserRole.SHOWHOST.value and not has_showhost:
-        return fail_response("ROLE_MISMATCH", status.HTTP_403_FORBIDDEN)
+        return fail_response(
+            "USER_NOT_FOUND_FOR_ROLE",
+            status.HTTP_404_NOT_FOUND,
+            {"code": "USER_NOT_FOUND_FOR_ROLE"},
+        )
 
     # 5) 이메일로 매칭된 기존 계정에 kakao_id가 비어 있으면 이번 로그인으로 연동
     if not getattr(user, "kakao_id", None):
